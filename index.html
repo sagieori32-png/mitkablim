@@ -1194,7 +1194,7 @@ function buildUpdate(id) {
             onchange="saveField('${id}','notes',this.value)">${load(id).notes || ''}</textarea>
         </div>
 
-        <button class="email-btn" onclick="sendUpdateEmail('${emailGroup}','${p.name}')">
+        <button class="email-btn" onclick="sendUpdateEmail('${emailGroup}','${id}')">
           📧 שלח עדכון במייל לרשימת התפוצה
         </button>
       </div>
@@ -1220,7 +1220,8 @@ const EMAIL_LISTS = {
   ],
 };
 
-function sendUpdateEmail(group, progName) {
+function sendUpdateEmail(group, progId) {
+  const progName = prog(progId)?.name ?? progId;
   const now = new Date();
   const dateStr = now.toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'numeric' });
   const timeStr = now.toLocaleTimeString('he-IL', { hour:'2-digit', minute:'2-digit' });
