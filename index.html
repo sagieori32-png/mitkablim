@@ -1263,7 +1263,11 @@ function sendUpdateEmail(group, progId) {
     'ניתן להיכנס לצפייה בכתובת:\nhttps://sagieori32-png.github.io/mitkablim/\n\n' +
     'בברכה'
   );
-  window.location.href = 'mailto:' + to + '?subject=' + sub + '&body=' + body;
+  const a = document.createElement('a');
+  a.href = 'mailto:' + to + '?subject=' + sub + '&body=' + body;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function buildAllMasterUpdate() {
@@ -1379,14 +1383,14 @@ function buildTracksSection(id, tracks, color) {
     <tr>
       <td style="text-align:right;font-size:12px;color:var(--text2);background:#F7F8FC;min-width:180px;padding:6px 10px">${t.label}</td>
       <td style="padding:4px 8px">
-        <input type="number" min="0" value="${ud[t.key+'_reg'] ?? ''}" placeholder="—"
-          style="width:72px;padding:4px 6px;border:1.5px solid color-mix(in srgb,${color} 30%,#dde);border-radius:6px;text-align:center;font-size:13px"
-          onchange="saveField('${id}','${t.key}_reg',this.value)">
-      </td>
-      <td style="padding:4px 8px">
         <input type="number" min="0" value="${ud[t.key+'_acc'] ?? ''}" placeholder="—"
           style="width:72px;padding:4px 6px;border:1.5px solid color-mix(in srgb,${color} 30%,#dde);border-radius:6px;text-align:center;font-size:13px"
           onchange="saveField('${id}','${t.key}_acc',this.value)">
+      </td>
+      <td style="padding:4px 8px">
+        <input type="number" min="0" value="${ud[t.key+'_pay'] ?? ''}" placeholder="—"
+          style="width:72px;padding:4px 6px;border:1.5px solid color-mix(in srgb,${color} 30%,#dde);border-radius:6px;text-align:center;font-size:13px"
+          onchange="saveField('${id}','${t.key}_pay',this.value)">
       </td>
     </tr>`).join('');
   return `
@@ -1396,8 +1400,8 @@ function buildTracksSection(id, tracks, color) {
         <thead>
           <tr>
             <th style="background:#37474F;padding:7px 10px;text-align:right;font-size:11.5px;color:#fff">מגמה</th>
-            <th style="background:#37474F;padding:7px 10px;font-size:11.5px;color:#fff">נרשמים</th>
             <th style="background:#37474F;padding:7px 10px;font-size:11.5px;color:#fff">מתקבלים</th>
+            <th style="background:#37474F;padding:7px 10px;font-size:11.5px;color:#fff">משלמים</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
