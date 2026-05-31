@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>מערכת דיווח - בית הספר לע"ס ולרווחה חברתית</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --surface: #FFFFFF;
+      --bg: #EEF2F7;
+      --text: #1A2340;
+      --text2: #5A6A85;
+      --border: #DDE3ED;
+      --shadow: 0 2px 10px rgba(0,0,0,0.08);
+      --shadow-lg: 0 6px 24px rgba(0,0,0,0.13);
+      --r: 14px;
+      --r-sm: 9px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      direction: rtl;
+    }
+
+    /* ── Header ── */
+    .hdr {
+      background: linear-gradient(135deg, #0D3B8E 0%, #1565C0 60%, #1976D2 100%);
+      color: #fff;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 3px 14px rgba(13,59,142,.35);
+    }
+    .hdr-logo { font-size: 32px; line-height: 1; }
+    .hdr-title { font-size: 19px; font-weight: 700; }
+    .hdr-sub { font-size: 12px; opacity: .8; margin-top: 2px; }
+    .back-btn {
+      margin-right: auto;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.35);
+      color: #fff;
+      padding: 8px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background .18s;
+      display: none;
+    }
+    .back-btn.vis { display: block; }
+    .back-btn:hover { background: rgba(255,255,255,.25); }
+
+    /* ── Layout ── */
+    .main { padding: 28px 24px; max-width: 1450px; margin: 0 auto; }
+
+    /* ── Home ── */
+    .home-head { text-align: center; margin-bottom: 32px; }
+    .home-head h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+    .home-head p { color: var(--text2); font-size: 14px; }
+
+    .prog-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    .prog-card {
+      background: #fff;
+      border-radius: var(--r);
+      padding: 30px 18px 24px;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: var(--shadow);
+      transition: transform .22s, box-shadow .22s, border-color .22s;
+      border: 2px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+    .prog-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 5px;
+      background: var(--pc);
+      border-radius: var(--r) var(--r) 0 0;
+    }
+    .prog-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--pc);
+    }
+    .prog-icon {
+      width: 68px; height: 68px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--pc) 12%, #fff);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px;
+      margin: 0 auto 16px;
+    }
+    .prog-name { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .prog-target { font-size: 12px; color: var(--text2); }
+    .prog-target b { color: var(--pc); font-size: 15px; }
+
+    /* ── Program page header ── */
+    .prog-hdr {
+      background: #fff;
+      border-radius: var(--r);
+      padding: 18px 22px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .prog-hdr-icon {
+      width: 54px; height: 54px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--pc) 12%, #fff);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; flex-shrink: 0;
+    }
+    .prog-hdr h2 { font-size: 20px; font-weight: 700; }
+    .prog-hdr p { color: var(--text2); font-size: 13px; margin-top: 3px; }
+    .target-badge {
+      margin-right: auto;
+      text-align: center;
+      background: color-mix(in srgb, var(--pc) 9%, #fff);
+      border: 1.5px solid color-mix(in srgb, var(--pc) 28%, #fff);
+      border-radius: 10px;
+      padding: 10px 22px;
+      min-width: 100px;
+    }
+    .target-badge .lbl { font-size: 11px; color: var(--text2); }
+    .target-badge .val { font-size: 26px; font-weight: 800; color: var(--pc); line-height: 1.2; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      background: #fff;
+      border-radius: var(--r) var(--r) 0 0;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 15px;
+      border: none; background: none;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer;
+      color: var(--text2);
+      border-bottom: 3px solid transparent;
+      transition: all .18s;
+    }
+    .tab-btn.active { color: var(--pc); border-bottom-color: var(--pc); background: color-mix(in srgb, var(--pc) 5%, #fff); }
+    .tab-body {
+      background: #fff;
+      border-radius: 0 0 var(--r) var(--r);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    /* ── Summary cards ── */
+    .sum-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .sum-card {
+      background: var(--bg);
+      border-radius: var(--r-sm);
+      padding: 14px 12px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    .sum-card.hl { background: color-mix(in srgb, var(--pc) 9%, #fff); border-color: color-mix(in srgb, var(--pc) 25%, #fff); }
+    .sum-card .lbl { font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+    .sum-card .val { font-size: 30px; font-weight: 800; color: var(--text); }
+    .sum-card.hl .val { color: var(--pc); }
+    .sum-card .sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+    /* ── Section title ── */
+    .sec-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+
+    /* ── Historical table ── */
+    .tbl-wrap { overflow-x: auto; border-radius: var(--r-sm); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th {
+      background: var(--pc);
+      color: #fff;
+      padding: 9px 11px;
+      text-align: center;
+      font-weight: 600;
+      white-space: nowrap;
+      position: sticky; top: 0; z-index: 2;
+    }
+    th.pcol { background: #37474F; text-align: right; min-width: 130px; }
+    th.curyear { background: color-mix(in srgb, var(--pc) 60%, #000); font-size: 13px; }
+    td { padding: 7px 11px; text-align: center; border-bottom: 1px solid #F2F4F8; }
+    td.pname { text-align: right; font-weight: 500; color: var(--text2); background: #FAFBFD; border-right: 3px solid var(--pc); }
+    tr:hover td { background: #F4F8FF; }
+    tr:hover td.pname { background: #EBF2FF; }
+    td.curyear { background: color-mix(in srgb, var(--pc) 7%, #fff); font-weight: 700; color: var(--pc); }
+    td.nd { color: #CCC; }
+
+    /* ── Chart ── */
+    .chart-wrap { position: relative; height: 310px; margin-top: 20px; }
+
+    /* ── Update layout ── */
+    .upd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    @media (max-width: 800px) { .upd-grid { grid-template-columns: 1fr; } }
+
+    .upd-card {
+      background: var(--bg);
+      border-radius: var(--r-sm);
+      padding: 18px;
+      border: 1px solid var(--border);
+    }
+    .upd-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--text); }
+
+    /* Period table inside update */
+    .ptbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ptbl th { background: #37474F; padding: 7px 10px; font-size: 11.5px; font-weight: 600; }
+    .ptbl td { padding: 5px 8px; border-bottom: 1px solid #EAEDF3; }
+    .ptbl td:first-child { text-align: right; background: #F7F8FC; color: var(--text2); font-size: 11.5px; min-width: 120px; }
+    .ptbl td.pv { color: var(--text2); }
+    .ptbl input[type=number] {
+      width: 74px; padding: 5px 7px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px; font-size: 13px;
+      text-align: center; background: #fff;
+      color: var(--text);
+      transition: border-color .15s;
+    }
+    .ptbl input[type=number]:focus { outline: none; border-color: var(--pc); }
+
+    /* Summary inputs */
+    .frow { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+    .flabel { font-size: 13px; color: var(--text2); min-width: 160px; }
+    .finput {
+      flex: 1; padding: 9px 13px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 15px; text-align: center;
+      background: #fff; color: var(--text);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .finput:focus { outline: none; border-color: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 18%, transparent); }
+
+    /* Comparison */
+    .cmp-box { background: #fff; border-radius: var(--r-sm); padding: 14px; border: 1px solid var(--border); margin-top: 14px; }
+    .cmp-box h4 { font-size: 12px; color: var(--text2); margin-bottom: 10px; }
+    .cmp-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #F2F4F8; font-size: 12.5px; }
+    .cmp-row:last-child { border-bottom: none; }
+    .cmp-yr { color: var(--text2); }
+    .cmp-vals { display: flex; align-items: center; gap: 6px; }
+    .cmp-prev { color: var(--text2); }
+    .cmp-curr { font-weight: 700; color: var(--pc); font-size: 15px; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 20px; font-size: 10.5px; font-weight: 700; }
+    .bu { background: #E8F5E9; color: #1B5E20; }
+    .bd { background: #FFEBEE; color: #B71C1C; }
+    .bs { background: #FFF3E0; color: #BF360C; }
+
+    /* Notes */
+    .notes-ta {
+      width: 100%; padding: 10px; font-family: inherit;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 13px; resize: vertical; min-height: 80px;
+      direction: rtl; background: #fff; color: var(--text);
+      transition: border-color .15s;
+    }
+    .notes-ta:focus { outline: none; border-color: var(--pc); }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 22px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1B5E20; color: #fff;
+      padding: 11px 24px; border-radius: 24px;
+      font-size: 14px; font-weight: 500;
+      transition: transform .28s ease;
+      z-index: 999;
+      box-shadow: 0 4px 16px rgba(0,0,0,.22);
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* Aggregate notice */
+    .agg-notice {
+      text-align: center; padding: 40px 20px;
+      color: var(--text2);
+      border: 2px dashed var(--border);
+      border-radius: var(--r);
+      margin-top: 10px;
+    }
+    .agg-notice .icon { font-size: 44px; margin-bottom: 12px; }
+    .agg-notice p { font-size: 14px; margin-bottom: 6px; }
+    .agg-chips { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+    .agg-chip {
+      padding: 7px 16px; border-radius: 20px; font-size: 13px;
+      font-weight: 600; cursor: pointer; border: 2px solid;
+      transition: all .18s;
+    }
+    .agg-chip:hover { transform: translateY(-2px); }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .main { padding: 14px 10px; }
+      .prog-grid { grid-template-columns: 1fr 1fr; }
+      .hdr-title { font-size: 15px; }
+    }
+
+    .tbl-wrap::-webkit-scrollbar { height: 5px; }
+    .tbl-wrap::-webkit-scrollbar-track { background: #EEF; }
+    .tbl-wrap::-webkit-scrollbar-thumb { background: #90A4AE; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo">🎓</div>
+  <div>
+    <div class="hdr-title">בית הספר לעבודה סוציאלית ולרווחה חברתית</div>
+    <div class="hdr-sub">מערכת דיווח וצפייה במועמדים, נרשמים ומתקבלים</div>
+  </div>
+  <button class="back-btn" id="backBtn" onclick="goHome()">← חזרה לתפריט</button>
+</div>
+
+<div class="main" id="main"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════
+
+const ALL_PERIODS = [
+  'סוף פברואר','אמצע מרץ','סוף מרץ',
+  'תחילת אפריל','אמצע אפריל','סוף אפריל',
+  'תחילת מאי','אמצע מאי','סוף מאי',
+  'תחילת יוני','אמצע יוני','סוף יוני',
+  'תחילת יולי','אמצע יולי','סוף יולי',
+  'תחילת אוגוסט','אמצע אוגוסט','סוף אוגוסט',
+  'תחילת ספטמבר','אמצע ספטמבר','סוף ספטמבר',
+  'תחילת אוקטובר','אמצע אוקטובר','סוף אוקטובר'
+];
+
+const YEARS = [
+  'תשע"ז','תשע"ח','תשע"ט','תש"פ','תשפ"א',
+  'תשפ"ב','תשפ"ג','תשפ"ד','תשפ"ה','תשפ"ו','תשפ"ז'
+];
+const CUR_YEAR  = 'תשפ"ז';
+const CUR_YI    = 10;  // index in YEARS
+const PREV_YEAR = 'תשפ"ו';
+const PREV_YI   = 9;
+
+const PROGRAMS = [
+  { id:'bachelor',        name:'בוגר בע"ס',                icon:'📘', color:'#1565C0', target:140,  agg:false },
+  { id:'welfare',         name:'בוגר רווחה חברתית',        icon:'🏠', color:'#00695C', target:20,   agg:false },
+  { id:'all_master',      name:'מוסמך (כל התוכניות)',      icon:'🎓', color:'#6A1B9A', target:215,  agg:true  },
+  { id:'social_work',     name:'מוסמך בע"ס',               icon:'🤝', color:'#2E7D32', target:120,  agg:false },
+  { id:'nonprofit',       name:'ניהול מלכ"רים',            icon:'🏛️', color:'#E65100', target:45,   agg:false },
+  { id:'early_childhood', name:'מוסמך בגיל הרך',           icon:'🌱', color:'#880E4F', target:50,   agg:false },
+];
+
+// Historical registrant counts [periodIdx][yearIdx], null = no data
+const HIST_REG = {
+  social_work: [
+    // 20 periods (idx 0-19), 11 years
+    [null,null,null,null,null,null,47,null,26,null,null],   // 0  סוף פברואר
+    [23,47,54,null,null,65,79,null,55,null,null],            // 1  אמצע מרץ
+    [50,64,55,74,50,null,97,null,null,null,null],            // 2  סוף מרץ
+    [54,70,65,79,58,78,99,null,68,null,null],                // 3  תחילת אפריל
+    [65,81,78,79,64,91,103,null,82,65,null],                 // 4  אמצע אפריל
+    [null,91,86,86,76,102,109,null,null,79,null],            // 5  סוף אפריל
+    [76,106,87,103,78,105,131,107,103,92,79],                // 6  תחילת מאי
+    [84,124,95,143,87,109,146,126,124,102,90],               // 7  אמצע מאי
+    [116,102,110,null,113,139,153,157,138,120,null],         // 8  סוף מאי
+    [121,109,126,155,135,145,166,168,146,132,null],          // 9  תחילת יוני
+    [132,115,136,170,152,157,171,178,169,150,null],          // 10 אמצע יוני
+    [158,149,null,null,173,172,183,193,181,162,null],        // 11 סוף יוני
+    [172,172,163,null,181,175,190,211,209,169,null],         // 12 תחילת יולי
+    [176,176,165,178,183,179,201,216,210,182,null],          // 13 אמצע יולי
+    [null,null,null,null,185,186,204,220,212,187,null],      // 14 סוף יולי
+    [182,180,170,192,187,189,204,221,216,194,null],          // 15 תחילת אוגוסט
+    [null,null,null,null,192,193,204,221,219,196,null],      // 16 אמצע אוגוסט
+    [189,null,173,null,193,null,null,221,220,202,null],      // 17 סוף אוגוסט
+    [null,null,null,199,204,null,204,221,223,205,null],      // 18 תחילת ספטמבר
+    [null,null,null,null,207,198,204,221,225,208,null],      // 19 אמצע ספטמבר
+  ],
+  nonprofit: [
+    // 24 periods (idx 0-23)
+    [null,null,null,null,null,null,2,null,3,null,null],      // 0
+    [11,11,9,null,null,6,5,null,6,null,null],                // 1
+    [19,15,20,14,8,null,6,null,null,null,null],              // 2
+    [20,18,20,14,8,7,6,null,6,null,null],                    // 3
+    [21,19,21,15,10,8,7,null,7,2,null],                      // 4
+    [null,21,21,15,10,12,9,null,null,2,null],                // 5
+    [25,22,24,18,13,13,11,8,7,3,9],                          // 6
+    [26,24,26,21,13,16,13,11,10,5,10],                       // 7
+    [41,24,28,null,19,23,15,13,10,7,null],                   // 8
+    [44,30,42,23,25,25,16,16,10,10,null],                    // 9
+    [47,37,47,28,29,28,17,18,18,13,null],                    // 10
+    [53,48,null,null,38,32,20,19,24,13,null],                // 11
+    [56,55,61,null,40,32,25,22,31,16,null],                  // 12
+    [62,59,63,35,43,34,26,22,34,19,null],                    // 13
+    [null,null,null,null,44,39,27,25,35,20,null],            // 14
+    [69,67,68,44,45,40,28,29,39,22,null],                    // 15
+    [null,null,null,null,47,42,28,39,40,25,null],            // 16
+    [73,null,70,null,48,43,null,44,40,26,null],              // 17
+    [null,null,75,49,52,43,30,49,41,27,null],                // 18
+    [null,null,null,null,54,46,34,49,46,30,null],            // 19
+    [null,null,null,null,58,51,36,54,null,33,null],          // 20
+    [null,null,null,null,60,null,37,54,47,null,null],        // 21
+    [null,null,null,null,61,null,null,null,48,null,null],    // 22
+    [null,null,null,null,65,null,null,null,50,null,null],    // 23
+  ],
+  early_childhood: [
+    // 24 periods (idx 0-23)
+    [null,null,null,null,null,null,13,null,6,null,null],     // 0
+    [13,22,14,null,null,20,19,null,11,null,null],            // 1
+    [27,28,21,30,15,null,21,null,null,null,null],            // 2
+    [30,29,25,33,17,22,22,null,14,null,null],                // 3
+    [34,34,30,34,21,22,25,null,16,5,null],                   // 4
+    [null,36,31,43,22,27,27,null,null,8,null],               // 5
+    [35,36,33,48,23,30,29,14,17,10,10],                      // 6
+    [37,40,36,58,30,35,33,17,20,12,11],                      // 7
+    [44,41,47,null,44,42,37,24,23,15,null],                  // 8
+    [48,40,55,63,51,42,39,29,27,15,null],                    // 9
+    [53,40,58,72,58,45,42,35,33,20,null],                    // 10
+    [65,55,null,null,71,50,45,39,36,22,null],                // 11
+    [78,67,73,null,73,53,48,46,39,22,null],                  // 12
+    [81,71,81,84,76,57,49,52,40,25,null],                    // 13
+    [null,null,null,null,77,63,50,61,41,28,null],            // 14
+    [85,78,86,91,80,68,51,63,51,29,null],                    // 15
+    [null,null,null,null,82,73,51,63,53,29,null],            // 16
+    [84,null,89,null,84,76,null,64,54,30,null],              // 17
+    [null,null,90,99,90,78,54,64,55,30,null],                // 18
+    [null,null,null,null,93,82,58,65,59,30,null],            // 19
+    [null,null,null,null,94,83,60,66,null,32,null],          // 20
+    [null,null,null,null,94,null,61,66,59,null,null],        // 21
+    [null,null,null,null,94,null,null,null,61,null,null],    // 22
+    [null,null,null,null,null,null,null,null,61,null,null],  // 23
+  ],
+  bachelor: Array(24).fill(null).map(() => Array(11).fill(null)),
+  welfare:  [
+    // 24 periods (idx 0-23), 11 years — only תשפ"ז (yi=10) has data so far
+    [null,null,null,null,null,null,null,null,null,null,null],   // 0  סוף פברואר
+    [null,null,null,null,null,null,null,null,null,null,null],   // 1  אמצע מרץ
+    [null,null,null,null,null,null,null,null,null,null,null],   // 2  סוף מרץ
+    [null,null,null,null,null,null,null,null,null,null,null],   // 3  תחילת אפריל
+    [null,null,null,null,null,null,null,null,null,null,null],   // 4  אמצע אפריל
+    [null,null,null,null,null,null,null,null,null,null,null],   // 5  סוף אפריל
+    [null,null,null,null,null,null,null,null,null,null,null],   // 6  תחילת מאי
+    [null,null,null,null,null,null,null,null,null,2,21],        // 7  אמצע מאי  (שנה קודמת=2, נוכחי=21)
+    [null,null,null,null,null,null,null,null,null,null,null],   // 8
+    [null,null,null,null,null,null,null,null,null,null,null],   // 9
+    [null,null,null,null,null,null,null,null,null,null,null],   // 10
+    [null,null,null,null,null,null,null,null,null,null,null],   // 11
+    [null,null,null,null,null,null,null,null,null,null,null],   // 12
+    [null,null,null,null,null,null,null,null,null,null,null],   // 13
+    [null,null,null,null,null,null,null,null,null,null,null],   // 14
+    [null,null,null,null,null,null,null,null,null,null,null],   // 15
+    [null,null,null,null,null,null,null,null,null,null,null],   // 16
+    [null,null,null,null,null,null,null,null,null,null,null],   // 17
+    [null,null,null,null,null,null,null,null,null,null,null],   // 18
+    [null,null,null,null,null,null,null,null,null,null,null],   // 19
+    [null,null,null,null,null,null,null,null,null,null,null],   // 20
+    [null,null,null,null,null,null,null,null,null,null,null],   // 21
+    [null,null,null,null,null,null,null,null,null,null,null],   // 22
+    [null,null,null,null,null,null,null,null,null,null,null],   // 23
+  ],
+};
+
+// Default summary values from Excel (as of 28.5.2026)
+const HIST_SUMMARY = {
+  social_work:     { acceptanceLetters: 50, withdrawals: 0, implementors: 31 },
+  nonprofit:       { acceptanceLetters: 8,  withdrawals: 0, implementors: 4  },
+  early_childhood: { acceptanceLetters: 6,  withdrawals: 2, implementors: 4  },
+  bachelor:        { acceptanceLetters: 117, withdrawals: null, implementors: 101 },
+  welfare:         { acceptanceLetters: 5,   withdrawals: null, implementors: 2   },
+};
+
+// Historical yearly summary for bachelor program [oldest → newest]
+const HIST_BACHELOR_YEARLY = [
+  { year: 'תשפ"ד', date: '29/05/2023', accepted430: 50, paying430: 48, pct430: 96, accepted431: 49, paying431: 47, pct431: 96, totalAccepted: 99,  totalPaying: 95,  totalPct: 96 },
+  { year: 'תשפ"ה', date: '28/05/2024', accepted430: 54, paying430: 44, pct430: 81, accepted431: 59, paying431: 39, pct431: 66, totalAccepted: 113, totalPaying: 83,  totalPct: 73 },
+  { year: 'תשפ"ו', date: '04/06/2025', accepted430: 45, paying430: 41, pct430: 91, accepted431: 67, paying431: 51, pct431: 76, totalAccepted: 112, totalPaying: 92,  totalPct: 82 },
+  { year: 'תשפ"ז', date: '28/05/2026', accepted430: 37, paying430: 32, pct430: 86, accepted431: 80, paying431: 69, pct431: 86, totalAccepted: 117, totalPaying: 101, totalPct: 86 },
+];
+
+// Period counts per program
+const NUM_PERIODS = {
+  social_work: 20, nonprofit: 24, early_childhood: 24, bachelor: 24, all_master: 24, welfare: 24
+};
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+
+let S = { prog: null, tab: 'display' };
+let chartInst = null;
+
+// ═══════════════════════════════════════════
+// STORAGE
+// ═══════════════════════════════════════════
+
+function load(id) {
+  try { return JSON.parse(localStorage.getItem('sws_' + id)) || {}; }
+  catch { return {}; }
+}
+function save(id, data) {
+  localStorage.setItem('sws_' + id, JSON.stringify(data));
+}
+
+// ═══════════════════════════════════════════
+// DATA ACCESS
+// ═══════════════════════════════════════════
+
+function prog(id) { return PROGRAMS.find(p => p.id === id); }
+
+function getReg(id, pi, yi) {
+  if (id === 'all_master') {
+    const ids = ['social_work', 'nonprofit', 'early_childhood'];
+    let sum = 0, any = false;
+    ids.forEach(sid => { const v = getReg(sid, pi, yi); if (v !== null) { sum += v; any = true; } });
+    return any ? sum : null;
+  }
+  const ud = load(id);
+  if (yi === CUR_YI) {
+    const k = 'r' + pi;
+    if (ud[k] !== undefined && ud[k] !== '') return Number(ud[k]);
+  }
+  const rows = HIST_REG[id];
+  if (!rows || pi >= rows.length) return null;
+  return rows[pi][yi];
+}
+
+function getSum(id, field) {
+  if (id === 'all_master') {
+    const ids = ['social_work', 'nonprofit', 'early_childhood'];
+    let sum = 0;
+    ids.forEach(sid => { const v = getSum(sid, field); if (v !== null) sum += (v || 0); });
+    return sum;
+  }
+  const ud = load(id);
+  if (ud[field] !== undefined && ud[field] !== '') return Number(ud[field]);
+  return HIST_SUMMARY[id]?.[field] ?? null;
+}
+
+function getTarget(id) {
+  const ud = load(id);
+  if (ud.target !== undefined && ud.target !== '') return Number(ud.target);
+  return prog(id)?.target ?? null;
+}
+
+function numPeriods(id) { return NUM_PERIODS[id] ?? 24; }
+
+// Latest registrant value for given year
+function latestReg(id, yi) {
+  const np = numPeriods(id);
+  for (let p = np - 1; p >= 0; p--) {
+    const v = getReg(id, p, yi);
+    if (v !== null) return { val: v, period: ALL_PERIODS[p] };
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════
+// RENDER HOME
+// ═══════════════════════════════════════════
+
+function renderHome() {
+  S.prog = null;
+  document.getElementById('backBtn').classList.remove('vis');
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+
+  document.getElementById('main').innerHTML = `
+    <div class="home-head">
+      <h2>בחר תוכנית</h2>
+      <p>שנת לימודים: ${CUR_YEAR} | עדכון אחרון: 18.5.2026</p>
+    </div>
+    <div class="prog-grid">
+      ${PROGRAMS.map(p => `
+        <div class="prog-card" style="--pc:${p.color}" onclick="selectProg('${p.id}')">
+          <div class="prog-icon">${p.icon}</div>
+          <div class="prog-name">${p.name}</div>
+          <div class="prog-target">${p.target ? `יעד: <b>${p.target}</b> סטודנטים` : '<b>ללא יעד קבוע</b>'}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════
+// RENDER PROGRAM PAGE
+// ═══════════════════════════════════════════
+
+function selectProg(id) {
+  S.prog = id; S.tab = 'display';
+  document.getElementById('backBtn').classList.add('vis');
+  renderProg(id);
+}
+
+function renderProg(id) {
+  const p = prog(id);
+  const tgt = getTarget(id);
+  const c = p.color;
+  const np = numPeriods(id);
+
+  document.getElementById('main').innerHTML = `
+    <div class="prog-hdr" style="--pc:${c}">
+      <div class="prog-hdr-icon" style="--pc:${c}">${p.icon}</div>
+      <div>
+        <h2>${p.name}</h2>
+        <p>מעקב נרשמים | מתקבלים | מממשים</p>
+      </div>
+      ${tgt ? `<div class="target-badge" style="--pc:${c}"><div class="lbl">יעד ${CUR_YEAR}</div><div class="val">${tgt}</div></div>` : ''}
+    </div>
+    <div class="tabs" style="--pc:${c}">
+      <button class="tab-btn ${S.tab==='display'?'active':''}" style="--pc:${c}" onclick="switchTab('display')">📊 תצוגה</button>
+      <button class="tab-btn ${S.tab==='update'?'active':''}" style="--pc:${c}" onclick="switchTab('update')">✏️ עדכון</button>
+    </div>
+    <div class="tab-body" style="--pc:${c}" id="tabBody">
+      ${S.tab === 'display' ? buildDisplay(id) : buildUpdate(id)}
+    </div>
+  `;
+
+  if (S.tab === 'display') {
+    if (id === 'bachelor') setTimeout(() => initBachelorChart(), 0);
+    else setTimeout(() => initChart(id), 0);
+  }
+}
+
+function switchTab(tab) { S.tab = tab; renderProg(S.prog); }
+function goHome() { renderHome(); }
+
+// ═══════════════════════════════════════════
+// DISPLAY TAB
+// ═══════════════════════════════════════════
+
+function buildDisplay(id) {
+  if (id === 'bachelor') return buildBachelorDisplay();
+  if (id === 'welfare')  return buildWelfareDisplay();
+
+  const p = prog(id);
+  const tgt = getTarget(id);
+  const al  = getSum(id, 'acceptanceLetters');
+  const wd  = getSum(id, 'withdrawals');
+  const im  = getSum(id, 'implementors');
+  const cur = latestReg(id, CUR_YI);
+  const prv = latestReg(id, PREV_YI);
+  const curVal = cur?.val ?? null;
+  const prvVal = prv?.val ?? null;
+
+  const acceptPct = (al && curVal) ? Math.round(al / curVal * 100) : null;
+  const implPct   = (im && tgt)    ? Math.round(im / tgt * 100)    : null;
+
+  const goalColor = implPct === null ? 'var(--text)' : implPct >= 100 ? '#1B5E20' : implPct >= 70 ? '#E65100' : '#B71C1C';
+
+  return `
+    <div class="sum-grid">
+      <div class="sum-card hl" style="--pc:${p.color}">
+        <div class="lbl">נרשמים ${CUR_YEAR} (עדכני)</div>
+        <div class="val">${curVal ?? '—'}</div>
+        <div class="sub">${cur ? cur.period : ''} | ${PREV_YEAR}: ${prvVal ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">מכתבי קבלה</div>
+        <div class="val">${al ?? '—'}</div>
+        <div class="sub">${acceptPct !== null ? acceptPct + '% מהנרשמים' : ''}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">הסרות מועמדות</div>
+        <div class="val">${wd ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">מממשים (שילמו מקדמה)</div>
+        <div class="val">${im ?? '—'}</div>
+        <div class="sub">${implPct !== null ? implPct + '% מהיעד (' + tgt + ')' : ''}</div>
+      </div>
+      ${tgt ? `
+      <div class="sum-card">
+        <div class="lbl">עמידה ביעד</div>
+        <div class="val" style="color:${goalColor}">${implPct !== null ? implPct + '%' : '—'}</div>
+        <div class="sub">יעד: ${tgt} סטודנטים</div>
+      </div>` : ''}
+    </div>
+
+    <div class="sec-title">📈 מגמת רישום לאורך השנה</div>
+    <div class="chart-wrap"><canvas id="regChart"></canvas></div>
+
+    <div class="table-section" style="margin-top:28px">
+      <div class="sec-title">📋 טבלה היסטורית — נרשמים לפי תקופה ושנה</div>
+      <div class="tbl-wrap">${buildHistTable(id)}</div>
+    </div>
+  `;
+}
+
+function buildBachelorDisplay() {
+  const p = prog('bachelor');
+  const c = p.color;
+  const al = getSum('bachelor', 'acceptanceLetters');
+  const im = getSum('bachelor', 'implementors');
+  const cur = HIST_BACHELOR_YEARLY[HIST_BACHELOR_YEARLY.length - 1];
+  const prv = HIST_BACHELOR_YEARLY[HIST_BACHELOR_YEARLY.length - 2];
+  const pct = cur?.totalPct ?? null;
+  const pctColor = pct === null ? 'var(--text)' : pct >= 90 ? '#1B5E20' : pct >= 75 ? '#E65100' : '#B71C1C';
+
+  const yearRows = HIST_BACHELOR_YEARLY.slice().reverse().map((row, i) => {
+    const isCur = i === 0;
+    const cls = isCur ? ' style="background:color-mix(in srgb,'+c+' 7%,#fff);font-weight:700"' : '';
+    return `<tr${cls}>
+      <td style="text-align:right;font-weight:${isCur?'700':'500'};color:${isCur?c:'var(--text2)'}">
+        ${row.year}${isCur ? ' ✦' : ''}
+      </td>
+      <td>${row.date}</td>
+      <td>${row.accepted430}</td>
+      <td>${row.paying430}</td>
+      <td>${row.pct430}%</td>
+      <td>${row.accepted431}</td>
+      <td>${row.paying431}</td>
+      <td>${row.pct431}%</td>
+      <td style="font-weight:600">${row.totalAccepted}</td>
+      <td style="font-weight:600">${row.totalPaying}</td>
+      <td style="font-weight:700;color:${isCur?c:'inherit'}">${row.totalPct}%</td>
+    </tr>`;
+  }).join('');
+
+  // Chart data for bachelor yearly trend
+  const chartLabels = HIST_BACHELOR_YEARLY.map(r => r.year);
+  const chartAccepted = HIST_BACHELOR_YEARLY.map(r => r.totalAccepted);
+  const chartPaying   = HIST_BACHELOR_YEARLY.map(r => r.totalPaying);
+
+  return `
+    <div class="sum-grid">
+      <div class="sum-card hl" style="--pc:${c}">
+        <div class="lbl">סה"כ מתקבלים ${CUR_YEAR}</div>
+        <div class="val">${al ?? '—'}</div>
+        <div class="sub">${cur?.date ?? ''} | ${prv?.year ?? ''}: ${prv?.totalAccepted ?? '—'}</div>
+      </div>
+      <div class="sum-card hl" style="--pc:${c}">
+        <div class="lbl">סה"כ משלמים מקדמה ${CUR_YEAR}</div>
+        <div class="val">${im ?? '—'}</div>
+        <div class="sub">${prv?.year ?? ''}: ${prv?.totalPaying ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">אחוז מימוש ${CUR_YEAR}</div>
+        <div class="val" style="color:${pctColor}">${pct !== null ? pct + '%' : '—'}</div>
+        <div class="sub">${prv?.year ?? ''}: ${prv?.totalPct ?? '—'}%</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">מתקבלים 430 (תשפ"ז)</div>
+        <div class="val">${cur?.accepted430 ?? '—'}</div>
+        <div class="sub">משלמים: ${cur?.paying430 ?? '—'} (${cur?.pct430 ?? '—'}%)</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">מתקבלים 431 (תשפ"ז)</div>
+        <div class="val">${cur?.accepted431 ?? '—'}</div>
+        <div class="sub">משלמים: ${cur?.paying431 ?? '—'} (${cur?.pct431 ?? '—'}%)</div>
+      </div>
+    </div>
+
+    <div class="sec-title">📈 מגמה שנתית — מתקבלים ומשלמים</div>
+    <div class="chart-wrap"><canvas id="regChart"></canvas></div>
+
+    <div class="table-section" style="margin-top:28px">
+      <div class="sec-title">📋 טבלה היסטורית — מתקבלים ומשלמים לפי שנה</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:right;min-width:70px;background:#37474F">שנה</th>
+              <th style="background:#37474F">תאריך</th>
+              <th colspan="3" style="background:#1565C0">מסלול 430</th>
+              <th colspan="3" style="background:#0D47A1">מסלול 431</th>
+              <th colspan="3" style="background:color-mix(in srgb,${c} 70%,#000)">סה"כ</th>
+            </tr>
+            <tr>
+              <th style="background:#37474F"></th>
+              <th style="background:#37474F"></th>
+              <th>מתקבלים</th>
+              <th>משלמים</th>
+              <th>%</th>
+              <th style="background:#0D47A1">מתקבלים</th>
+              <th style="background:#0D47A1">משלמים</th>
+              <th style="background:#0D47A1">%</th>
+              <th style="background:color-mix(in srgb,${c} 70%,#000)">מתקבלים</th>
+              <th style="background:color-mix(in srgb,${c} 70%,#000)">משלמים</th>
+              <th style="background:color-mix(in srgb,${c} 70%,#000)">%</th>
+            </tr>
+          </thead>
+          <tbody>${yearRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function initBachelorChart() {
+  const canvas = document.getElementById('regChart');
+  if (!canvas) return;
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  const chartLabels   = HIST_BACHELOR_YEARLY.map(r => r.year);
+  const chartAccepted = HIST_BACHELOR_YEARLY.map(r => r.totalAccepted);
+  const chartPaying   = HIST_BACHELOR_YEARLY.map(r => r.totalPaying);
+  chartInst = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: chartLabels,
+      datasets: [
+        { label: 'מתקבלים',      data: chartAccepted, backgroundColor: 'rgba(21,101,192,0.75)', borderColor: '#1565C0', borderWidth: 1.5, borderRadius: 5 },
+        { label: 'משלמים מקדמה', data: chartPaying,   backgroundColor: 'rgba(21,101,192,0.35)', borderColor: '#1565C0', borderWidth: 1.5, borderRadius: 5 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', rtl: true, labels: { usePointStyle: true, padding: 16 } },
+        tooltip: { rtl: true }
+      },
+      scales: {
+        x: { ticks: { font: { size: 12 } } },
+        y: { beginAtZero: true, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function buildWelfareDisplay() {
+  const p = prog('welfare');
+  const c = p.color;
+  const al = getSum('welfare', 'acceptanceLetters');
+  const im = getSum('welfare', 'implementors');
+  const cur = latestReg('welfare', CUR_YI);
+  const prv = latestReg('welfare', PREV_YI);
+  const curVal = cur?.val ?? null;
+  const prvVal = prv?.val ?? null;
+
+  return `
+    <div class="sum-grid">
+      <div class="sum-card hl" style="--pc:${c}">
+        <div class="lbl">נרשמים ${CUR_YEAR} (עדכני)</div>
+        <div class="val">${curVal ?? '—'}</div>
+        <div class="sub">${cur ? cur.period : ''} | ${PREV_YEAR}: ${prvVal ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">מתקבלים רלוונטים</div>
+        <div class="val">${al ?? '—'}</div>
+        <div class="sub">${(al && curVal) ? Math.round(al/curVal*100)+'% מהנרשמים' : ''}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">משלמים מקדמה</div>
+        <div class="val">${im ?? '—'}</div>
+        <div class="sub">${(im && al) ? Math.round(im/al*100)+'% מהמתקבלים' : ''}</div>
+      </div>
+    </div>
+
+    <div class="sec-title">📈 מגמת רישום לאורך השנה</div>
+    <div class="chart-wrap"><canvas id="regChart"></canvas></div>
+
+    <div class="table-section" style="margin-top:28px">
+      <div class="sec-title">📋 טבלה היסטורית — נרשמים לפי תקופה ושנה</div>
+      <div class="tbl-wrap">${buildHistTable('welfare')}</div>
+    </div>
+  `;
+}
+
+function buildHistTable(id) {
+  const np = numPeriods(id);
+  const thead = `<thead><tr>
+    <th class="pcol">תקופה</th>
+    ${YEARS.map((y, yi) => `<th${yi === CUR_YI ? ' class="curyear"' : ''}>${y}</th>`).join('')}
+  </tr></thead>`;
+
+  let rows = '';
+  for (let pi = 0; pi < np; pi++) {
+    rows += `<tr><td class="pname">${ALL_PERIODS[pi]}</td>`;
+    for (let yi = 0; yi < YEARS.length; yi++) {
+      const v = getReg(id, pi, yi);
+      const isCur = yi === CUR_YI;
+      if (v === null) rows += `<td class="nd${isCur ? ' curyear' : ''}">—</td>`;
+      else rows += `<td${isCur ? ' class="curyear"' : ''}>${v}</td>`;
+    }
+    rows += '</tr>';
+  }
+
+  return `<table>${thead}<tbody>${rows}</tbody></table>`;
+}
+
+// ═══════════════════════════════════════════
+// CHART
+// ═══════════════════════════════════════════
+
+function initChart(id) {
+  const canvas = document.getElementById('regChart');
+  if (!canvas) return;
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+
+  const p = prog(id);
+  const np = numPeriods(id);
+  const labels = ALL_PERIODS.slice(0, np);
+
+  const series = [
+    { yi: 6, label: 'תשפ"ג', color: '#BDBDBD', w: 1, r: 2 },
+    { yi: 7, label: 'תשפ"ד', color: '#90A4AE', w: 1, r: 2 },
+    { yi: 8, label: 'תשפ"ה', color: '#64B5F6', w: 2, r: 3 },
+    { yi: 9, label: 'תשפ"ו', color: '#1E88E5', w: 2, r: 4 },
+    { yi: 10, label: 'תשפ"ז (נוכחי)', color: p.color, w: 3, r: 5 },
+  ];
+
+  const datasets = series.map(s => ({
+    label: s.label,
+    data: Array.from({ length: np }, (_, pi) => getReg(id, pi, s.yi)),
+    borderColor: s.color,
+    backgroundColor: 'transparent',
+    borderWidth: s.w,
+    tension: 0.35,
+    spanGaps: true,
+    pointRadius: s.r,
+    pointHoverRadius: s.r + 3,
+    pointBorderWidth: 1.5,
+  }));
+
+  chartInst = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', rtl: true, labels: { usePointStyle: true, padding: 16 } },
+        tooltip: { rtl: true, mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { ticks: { maxRotation: 45, font: { size: 10.5 } } },
+        y: { beginAtZero: true, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// UPDATE TAB
+// ═══════════════════════════════════════════
+
+function buildUpdate(id) {
+  const p = prog(id);
+  if (p.agg) return buildAggNotice();
+
+  const np = numPeriods(id);
+  const ud = load(id);
+  const al = getSum(id, 'acceptanceLetters');
+  const wd = getSum(id, 'withdrawals');
+  const im = getSum(id, 'implementors');
+  const tgt = getTarget(id);
+
+  // Build period rows
+  let periodRows = '';
+  for (let pi = 0; pi < np; pi++) {
+    const prevVal = getReg(id, pi, PREV_YI);
+    const curHist = (HIST_REG[id]?.[pi])?.[CUR_YI] ?? null;
+    const savedVal = ud['r' + pi];
+    const curVal = savedVal !== undefined && savedVal !== '' ? savedVal : (curHist !== null ? curHist : '');
+    periodRows += `
+      <tr>
+        <td>${ALL_PERIODS[pi]}</td>
+        <td class="pv">${prevVal ?? '—'}</td>
+        <td>
+          <input type="number" min="0"
+            id="inp_${id}_r${pi}"
+            value="${curVal}"
+            placeholder="—"
+            style="border-color: color-mix(in srgb, ${p.color} 40%, #dde)"
+            onchange="saveField('${id}','r${pi}',this.value)">
+        </td>
+      </tr>`;
+  }
+
+  return `
+    <div style="font-weight:700;font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
+      עדכון נתונים — שנת ${CUR_YEAR}
+      <span style="font-size:12px;color:var(--text2);font-weight:400;border:1px solid var(--border);padding:3px 10px;border-radius:20px">📅 עדכון מקורי: 18.5.2026</span>
+    </div>
+    <div class="upd-grid">
+      <!-- Column 1: period registrant data -->
+      <div>
+        <div class="upd-card">
+          <h3>📊 נרשמים לפי תקופה — ${CUR_YEAR}</h3>
+          <div style="overflow-x:auto">
+            <table class="ptbl">
+              <thead>
+                <tr>
+                  <th>תקופה</th>
+                  <th>${PREV_YEAR}</th>
+                  <th>${CUR_YEAR} (עדכון)</th>
+                </tr>
+              </thead>
+              <tbody>${periodRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- Column 2: summary + comparison -->
+      <div>
+        <div class="upd-card">
+          <h3>📋 סיכום נתונים — ${CUR_YEAR}</h3>
+          ${tgt === null || prog(id).target === null ? `
+            <div class="frow">
+              <label class="flabel">יעד נרשמים:</label>
+              <input type="number" class="finput" min="0"
+                value="${tgt ?? ''}" placeholder="הכנס יעד"
+                onchange="saveField('${id}','target',this.value)">
+            </div>` : ''}
+          <div class="frow">
+            <label class="flabel">מכתבי קבלה:</label>
+            <input type="number" class="finput" min="0"
+              value="${al ?? ''}" placeholder="—"
+              style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
+              onchange="saveField('${id}','acceptanceLetters',this.value)">
+          </div>
+          <div class="frow">
+            <label class="flabel">הסרות מועמדות:</label>
+            <input type="number" class="finput" min="0"
+              value="${wd ?? ''}" placeholder="—"
+              style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
+              onchange="saveField('${id}','withdrawals',this.value)">
+          </div>
+          <div class="frow">
+            <label class="flabel">מממשים (שילמו מקדמה):</label>
+            <input type="number" class="finput" min="0"
+              value="${im ?? ''}" placeholder="—"
+              style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
+              onchange="saveField('${id}','implementors',this.value)">
+          </div>
+        </div>
+
+        <div class="cmp-box">
+          <h4>📊 השוואה ${CUR_YEAR} מול ${PREV_YEAR} — תקופות אחרונות</h4>
+          ${buildComparison(id)}
+        </div>
+
+        <div class="upd-card" style="margin-top:14px">
+          <h3>📝 הערות</h3>
+          <textarea class="notes-ta" placeholder="הכנס הערות..."
+            onchange="saveField('${id}','notes',this.value)">${load(id).notes || ''}</textarea>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildAggNotice() {
+  const chips = PROGRAMS.filter(p => !p.agg && p.id !== 'bachelor')
+    .map(p => `<div class="agg-chip" style="--pc:${p.color};color:${p.color};border-color:${p.color}" onclick="selectProg('${p.id}')">${p.icon} ${p.name}</div>`)
+    .join('');
+  return `
+    <div class="agg-notice">
+      <div class="icon">🔗</div>
+      <p>תצוגת "כל התוכניות" מרכזת נתונים מכל תוכניות המוסמך.</p>
+      <p>לעדכון נתונים יש לגשת לכל תוכנית בנפרד:</p>
+      <div class="agg-chips">${chips}</div>
+    </div>
+  `;
+}
+
+function buildComparison(id) {
+  const np = numPeriods(id);
+  let points = [];
+  for (let pi = 0; pi < np; pi++) {
+    const cur = getReg(id, pi, CUR_YI);
+    const prv = getReg(id, pi, PREV_YI);
+    if (cur !== null || prv !== null) points.push({ period: ALL_PERIODS[pi], cur, prv });
+  }
+  const recent = points.slice(-6);
+  if (!recent.length) return '<div style="color:#aaa;font-size:12px">אין נתונים</div>';
+
+  return recent.map(({ period, cur, prv }) => {
+    let badge = '';
+    if (cur !== null && prv !== null) {
+      const d = cur - prv;
+      badge = d > 0 ? `<span class="badge bu">+${d}</span>` : d < 0 ? `<span class="badge bd">${d}</span>` : `<span class="badge bs">±0</span>`;
+    }
+    return `
+      <div class="cmp-row">
+        <span class="cmp-yr">${period}</span>
+        <div class="cmp-vals">
+          <span class="cmp-prev">${prv ?? '—'}</span>
+          <span style="color:#ccc">→</span>
+          <span class="cmp-curr">${cur ?? '—'}</span>
+          ${badge}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// SAVE
+// ═══════════════════════════════════════════
+
+function saveField(id, field, value) {
+  const ud = load(id);
+  ud[field] = value;
+  save(id, ud);
+  showToast('נשמר ✓');
+}
+
+// ═══════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ═══════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════
+renderHome();
+</script>
+</body>
+</html>
