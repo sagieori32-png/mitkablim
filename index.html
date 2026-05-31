@@ -1143,6 +1143,20 @@ function buildUpdate(id) {
       </div>
     </div>` : '';
 
+  let masterTracksHtml = '';
+  if (id === 'social_work') {
+    masterTracksHtml = buildTracksSection(id, [
+      { key:'track_context', label:'טיפול בהקשר חברתי' },
+      { key:'track_social',  label:'שינוי חברתי במציאות משתנה' },
+    ], p.color);
+  } else if (id === 'early_childhood') {
+    masterTracksHtml = buildTracksSection(id, [
+      { key:'track_guidance', label:'הדרכה ויעוץ' },
+      { key:'track_policy',   label:'מדיניות וניהול' },
+      { key:'track_mental',   label:'בריאות הנפש' },
+    ], p.color);
+  }
+
   const isMaster = ['social_work','nonprofit','early_childhood'].includes(id);
   const emailGroup = isMaster ? 'master' : 'bachelor';
 
@@ -1196,6 +1210,7 @@ function buildUpdate(id) {
               onchange="saveField('${id}','implementors',this.value)">
           </div>
           ${bachelorFields}
+          ${masterTracksHtml}
         </div>
 
         <div class="cmp-box">
