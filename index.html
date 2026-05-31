@@ -316,6 +316,42 @@
     .tbl-wrap::-webkit-scrollbar { height: 5px; }
     .tbl-wrap::-webkit-scrollbar-track { background: #EEF; }
     .tbl-wrap::-webkit-scrollbar-thumb { background: #90A4AE; border-radius: 3px; }
+
+    /* ── All-master sub-program rows ── */
+    .sub-progs-wrap { display: flex; flex-direction: column; gap: 10px; }
+    .sub-prog-row {
+      display: flex; align-items: center; gap: 0;
+      background: #fff; border-radius: var(--r-sm);
+      border: 1.5px solid color-mix(in srgb, var(--pc) 22%, #ddd);
+      overflow: hidden;
+    }
+    .spr-name {
+      min-width: 160px; padding: 12px 14px;
+      font-weight: 700; font-size: 13px;
+      background: color-mix(in srgb, var(--pc) 10%, #fff);
+      border-left: 3px solid var(--pc);
+      color: var(--pc);
+    }
+    .spr-cell {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 8px 6px; border-left: 1px solid #F0F2F7; font-size: 12px;
+    }
+    .spr-lbl { font-size: 10px; color: var(--text2); margin-bottom: 2px; }
+    .spr-cell b { font-size: 18px; font-weight: 800; }
+    .spr-cell small { font-size: 10px; color: var(--text2); }
+
+    /* ── Email button ── */
+    .email-btn {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 18px; padding: 13px 20px;
+      background: linear-gradient(135deg, #1565C0, #1976D2);
+      color: #fff; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      width: 100%; justify-content: center;
+      box-shadow: 0 3px 10px rgba(21,101,192,.3);
+      transition: opacity .18s, transform .18s;
+    }
+    .email-btn:hover { opacity: .9; transform: translateY(-1px); }
   </style>
 </head>
 <body>
@@ -643,8 +679,9 @@ function goHome() { renderHome(); }
 // ═══════════════════════════════════════════
 
 function buildDisplay(id) {
-  if (id === 'bachelor') return buildBachelorDisplay();
-  if (id === 'welfare')  return buildWelfareDisplay();
+  if (id === 'bachelor')  return buildBachelorDisplay();
+  if (id === 'welfare')   return buildWelfareDisplay();
+  if (id === 'all_master') return buildAllMasterDisplay();
 
   const p = prog(id);
   const tgt = getTarget(id);
@@ -696,6 +733,79 @@ function buildDisplay(id) {
     <div class="table-section" style="margin-top:28px">
       <div class="sec-title">📋 טבלה היסטורית — נרשמים לפי תקופה ושנה</div>
       <div class="tbl-wrap">${buildHistTable(id)}</div>
+    </div>
+  `;
+}
+
+function buildAllMasterDisplay() {
+  const subProgs = [
+    { id:'social_work',     label:'מוסמך בע"ס' },
+    { id:'nonprofit',       label:'ניהול מלכ"רים' },
+    { id:'early_childhood', label:'מוסמך בגיל הרך' },
+  ];
+  const totalTgt  = getTarget('all_master');
+  const totalCur  = latestReg('all_master', CUR_YI);
+  const totalPrv  = latestReg('all_master', PREV_YI);
+  const totalAL   = getSum('all_master', 'acceptanceLetters');
+  const totalIM   = getSum('all_master', 'implementors');
+  const totalImplPct = (totalIM && totalTgt) ? Math.round(totalIM / totalTgt * 100) : null;
+  const goalColor = totalImplPct === null ? 'var(--text)' : totalImplPct >= 100 ? '#1B5E20' : totalImplPct >= 70 ? '#E65100' : '#B71C1C';
+
+  // Per-program summary rows
+  const subRows = subProgs.map(sp => {
+    const pp   = prog(sp.id);
+    const cur  = latestReg(sp.id, CUR_YI);
+    const prv  = latestReg(sp.id, PREV_YI);
+    const al   = getSum(sp.id, 'acceptanceLetters');
+    const im   = getSum(sp.id, 'implementors');
+    const tgt  = getTarget(sp.id);
+    const implPct = (im && tgt) ? Math.round(im / tgt * 100) : null;
+    const pColor = implPct === null ? 'var(--text2)' : implPct >= 100 ? '#1B5E20' : implPct >= 70 ? '#E65100' : '#B71C1C';
+    return `
+      <div class="sub-prog-row" style="--pc:${pp.color}">
+        <div class="spr-name">${pp.icon} ${sp.label}</div>
+        <div class="spr-cell"><span class="spr-lbl">נרשמים</span><b>${cur?.val ?? '—'}</b><small>${prv?.val != null ? PREV_YEAR+': '+prv.val : ''}</small></div>
+        <div class="spr-cell"><span class="spr-lbl">מכתבי קבלה</span><b>${al ?? '—'}</b></div>
+        <div class="spr-cell"><span class="spr-lbl">מממשים</span><b>${im ?? '—'}</b></div>
+        <div class="spr-cell"><span class="spr-lbl">יעד</span><b>${tgt ?? '—'}</b></div>
+        <div class="spr-cell"><span class="spr-lbl">עמידה ביעד</span><b style="color:${pColor}">${implPct !== null ? implPct+'%' : '—'}</b></div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="sum-grid" style="margin-bottom:18px">
+      <div class="sum-card hl" style="--pc:#6A1B9A">
+        <div class="lbl">סה"כ נרשמים ${CUR_YEAR}</div>
+        <div class="val">${totalCur?.val ?? '—'}</div>
+        <div class="sub">${totalCur?.period ?? ''} | ${PREV_YEAR}: ${totalPrv?.val ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">סה"כ מכתבי קבלה</div>
+        <div class="val">${totalAL ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">סה"כ מממשים</div>
+        <div class="val">${totalIM ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">יעד כלל המוסמך</div>
+        <div class="val">${totalTgt ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">עמידה ביעד כולל</div>
+        <div class="val" style="color:${goalColor}">${totalImplPct !== null ? totalImplPct+'%' : '—'}</div>
+      </div>
+    </div>
+
+    <div class="sec-title">📂 פירוט לפי תוכנית</div>
+    <div class="sub-progs-wrap">${subRows}</div>
+
+    <div class="sec-title" style="margin-top:28px">📈 מגמת רישום לאורך השנה — כלל המוסמך</div>
+    <div class="chart-wrap"><canvas id="regChart"></canvas></div>
+
+    <div class="table-section" style="margin-top:28px">
+      <div class="sec-title">📋 טבלה היסטורית — נרשמים לפי תקופה ושנה</div>
+      <div class="tbl-wrap">${buildHistTable('all_master')}</div>
     </div>
   `;
 }
@@ -951,11 +1061,11 @@ function buildUpdate(id) {
   const p = prog(id);
   if (p.agg) return buildAggNotice();
 
-  const np = numPeriods(id);
-  const ud = load(id);
-  const al = getSum(id, 'acceptanceLetters');
-  const wd = getSum(id, 'withdrawals');
-  const im = getSum(id, 'implementors');
+  const np  = numPeriods(id);
+  const ud  = load(id);
+  const al  = getSum(id, 'acceptanceLetters');
+  const wd  = getSum(id, 'withdrawals');
+  const im  = getSum(id, 'implementors');
   const tgt = getTarget(id);
 
   // Build period rows
@@ -980,10 +1090,51 @@ function buildUpdate(id) {
       </tr>`;
   }
 
+  // Bachelor-specific 430/431 breakdown fields
+  const bachelorFields = (id === 'bachelor' || id === 'welfare') ? `
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px">פירוט לפי מסלול</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+        <div style="font-size:11px;font-weight:600;color:#1565C0;text-align:center;background:#E3F2FD;padding:4px;border-radius:6px">מסלול 431 (חד-חוגי)</div>
+        <div style="font-size:11px;font-weight:600;color:#0D47A1;text-align:center;background:#E8EAF6;padding:4px;border-radius:6px">מסלול 430 (דו-חוגי)</div>
+      </div>
+      <div class="frow">
+        <label class="flabel" style="color:#1565C0">מתקבלים 431:</label>
+        <input type="number" class="finput" min="0"
+          value="${ud.accepted431 ?? ''}" placeholder="—"
+          style="border-color:#90CAF9"
+          onchange="saveField('${id}','accepted431',this.value)">
+      </div>
+      <div class="frow">
+        <label class="flabel" style="color:#1565C0">משלמים מקדמה 431:</label>
+        <input type="number" class="finput" min="0"
+          value="${ud.paying431 ?? ''}" placeholder="—"
+          style="border-color:#90CAF9"
+          onchange="saveField('${id}','paying431',this.value)">
+      </div>
+      <div class="frow">
+        <label class="flabel" style="color:#0D47A1">מתקבלים 430:</label>
+        <input type="number" class="finput" min="0"
+          value="${ud.accepted430 ?? ''}" placeholder="—"
+          style="border-color:#9FA8DA"
+          onchange="saveField('${id}','accepted430',this.value)">
+      </div>
+      <div class="frow">
+        <label class="flabel" style="color:#0D47A1">משלמים מקדמה 430:</label>
+        <input type="number" class="finput" min="0"
+          value="${ud.paying430 ?? ''}" placeholder="—"
+          style="border-color:#9FA8DA"
+          onchange="saveField('${id}','paying430',this.value)">
+      </div>
+    </div>` : '';
+
+  const isMaster = ['social_work','nonprofit','early_childhood'].includes(id);
+  const emailGroup = isMaster ? 'master' : 'bachelor';
+
   return `
     <div style="font-weight:700;font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
       עדכון נתונים — שנת ${CUR_YEAR}
-      <span style="font-size:12px;color:var(--text2);font-weight:400;border:1px solid var(--border);padding:3px 10px;border-radius:20px">📅 עדכון מקורי: 18.5.2026</span>
+      <span style="font-size:12px;color:var(--text2);font-weight:400;border:1px solid var(--border);padding:3px 10px;border-radius:20px">📅 עדכון מקורי: 28.5.2026</span>
     </div>
     <div class="upd-grid">
       <!-- Column 1: period registrant data -->
@@ -1004,17 +1155,10 @@ function buildUpdate(id) {
           </div>
         </div>
       </div>
-      <!-- Column 2: summary + comparison -->
+      <!-- Column 2: summary + comparison + email -->
       <div>
         <div class="upd-card">
           <h3>📋 סיכום נתונים — ${CUR_YEAR}</h3>
-          ${tgt === null || prog(id).target === null ? `
-            <div class="frow">
-              <label class="flabel">יעד נרשמים:</label>
-              <input type="number" class="finput" min="0"
-                value="${tgt ?? ''}" placeholder="הכנס יעד"
-                onchange="saveField('${id}','target',this.value)">
-            </div>` : ''}
           <div class="frow">
             <label class="flabel">מכתבי קבלה:</label>
             <input type="number" class="finput" min="0"
@@ -1036,6 +1180,7 @@ function buildUpdate(id) {
               style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
               onchange="saveField('${id}','implementors',this.value)">
           </div>
+          ${bachelorFields}
         </div>
 
         <div class="cmp-box">
@@ -1048,9 +1193,46 @@ function buildUpdate(id) {
           <textarea class="notes-ta" placeholder="הכנס הערות..."
             onchange="saveField('${id}','notes',this.value)">${load(id).notes || ''}</textarea>
         </div>
+
+        <button class="email-btn" onclick="sendUpdateEmail('${emailGroup}','${p.name}')">
+          📧 שלח עדכון במייל לרשימת התפוצה
+        </button>
       </div>
     </div>
   `;
+}
+
+const EMAIL_LISTS = {
+  master: [
+    'ayalaw@savion.huji.ac.il',
+    'shirisit@savion.huji.ac.il',
+    'oris@savion.huji.ac.il',
+    'shulil@savion.huji.ac.il',
+    'dana.lassri@mail.huji.ac.il',
+    'michal.bar@mail.huji.ac.il',
+    'miriam.schiff@mail.huji.ac.il',
+  ],
+  bachelor: [
+    'miriam.schiff@mail.huji.ac.il',
+    'atalmon@mail.huji.ac.il',
+    'roniholler@gmail.com',
+    'shulil@savion.huji.ac.il',
+  ],
+};
+
+function sendUpdateEmail(group, progName) {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'numeric' });
+  const timeStr = now.toLocaleTimeString('he-IL', { hour:'2-digit', minute:'2-digit' });
+  const to  = EMAIL_LISTS[group].join(';');
+  const sub = encodeURIComponent('עדכון מערכת נרשמים — ' + progName + ' — ' + dateStr);
+  const body = encodeURIComponent(
+    'שלום,\n\n' +
+    'המערכת עודכנה לתאריך ' + dateStr + ' בשעה ' + timeStr + ' לתוכנית ' + progName + '.\n\n' +
+    'ניתן להיכנס לצפייה בכתובת:\nhttps://sagieori32-png.github.io/mitkablim/\n\n' +
+    'בברכה'
+  );
+  window.location.href = 'mailto:' + to + '?subject=' + sub + '&body=' + body;
 }
 
 function buildAggNotice() {
