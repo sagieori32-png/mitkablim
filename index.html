@@ -768,6 +768,9 @@ function buildDisplay(id) {
 
 function buildTracksDisplay(id, tracks) {
   const ud = load(id);
+  const hasData = tracks.some(t => (ud[t.key+'_acc'] !== undefined && ud[t.key+'_acc'] !== '') ||
+                                   (ud[t.key+'_pay'] !== undefined && ud[t.key+'_pay'] !== ''));
+  if (!hasData) return '';
   const rows = tracks.map(t => {
     const a = ud[t.key+'_acc'];
     const p = ud[t.key+'_pay'];
@@ -853,6 +856,9 @@ function buildAllMasterDisplay() {
 
     <div class="sec-title">📂 פירוט לפי תוכנית</div>
     <div class="sub-progs-wrap">${subRows}</div>
+
+    ${buildTracksDisplay('social_work', [{key:'track_context',label:'טיפול בהקשר חברתי'},{key:'track_social',label:'שינוי חברתי במציאות משתנה'}])}
+    ${buildTracksDisplay('early_childhood', [{key:'track_guidance',label:'הדרכה ויעוץ'},{key:'track_policy',label:'מדיניות וניהול'},{key:'track_mental',label:'בריאות הנפש'}])}
 
     <div class="sec-title" style="margin-top:28px">📈 מגמת רישום לאורך השנה — כלל המוסמך</div>
     <div class="chart-wrap"><canvas id="regChart"></canvas></div>
@@ -1645,13 +1651,25 @@ function buildComparison(id) {
 // ═══════════════════════════════════════════
 
 function saveField(id, field, value) {
-  if (value === '' || value === null) return;
+  if (value === '' || value === null || value === undefined) return;
   const ud = load(id);
   ud[field] = value;
-  const now = new Date();
-  ud._updatedTs = now.getTime();
-  ud._updated = now.toLocaleDateString('he-IL') + ' ' + now.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
   save(id, ud);
+  try {
+    const now = new Date();
+    const saved = load(id);
+    saved._updatedTs = now.getTime();
+    saved._updated = now.toLocaleDateString('he-IL') + ' ' + now.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
+    save(id, saved);
+  } catch(e) {
+    try {
+      const now = new Date();
+      const saved = load(id);
+      saved._updatedTs = now.getTime();
+      saved._updated = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+      save(id, saved);
+    } catch(e2) { /* timestamp save failed, data already saved above */ }
+  }
   showToast('נשמר ✓');
 }
 
