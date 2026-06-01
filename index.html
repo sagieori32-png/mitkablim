@@ -415,6 +415,7 @@ const PROGRAMS = [
   { id:'social_work',     name:'מוסמך בע"ס',               icon:'🤝', color:'#2E7D32', target:120,  agg:false },
   { id:'nonprofit',       name:'ניהול מלכ"רים',            icon:'🏛️', color:'#E65100', target:45,   agg:false },
   { id:'early_childhood', name:'מוסמך בגיל הרך',           icon:'🌱', color:'#880E4F', target:50,   agg:false },
+  { id:'hashlamot',       name:'תוכנית ההשלמות',           icon:'📋', color:'#4527A0', target:40,   agg:false },
 ];
 
 // Historical registrant counts [periodIdx][yearIdx], null = no data
@@ -535,6 +536,16 @@ const HIST_SUMMARY = {
   welfare:         { acceptanceLetters: 5,   withdrawals: null, implementors: 2   },
 };
 
+const HIST_HASHLAMOT = {
+  registrants:      189,
+  dual_registrants: 43,
+  accepted:         15,
+  rejected:         15,
+  waiting_list:     21,
+  committee:        47,
+  faculty:          91,
+};
+
 // Historical yearly summary for bachelor program [oldest → newest]
 const HIST_BACHELOR_YEARLY = [
   { year: 'תשפ"ד', date: '29/05/2023', accepted430: 50, paying430: 48, pct430: 96, accepted431: 49, paying431: 47, pct431: 96, totalAccepted: 99,  totalPaying: 95,  totalPct: 96 },
@@ -545,7 +556,7 @@ const HIST_BACHELOR_YEARLY = [
 
 // Period counts per program
 const NUM_PERIODS = {
-  social_work: 20, nonprofit: 24, early_childhood: 24, bachelor: 24, all_master: 24, welfare: 24
+  social_work: 20, nonprofit: 24, early_childhood: 24, bachelor: 24, all_master: 24, welfare: 24, hashlamot: 0
 };
 
 // ═══════════════════════════════════════════
@@ -632,7 +643,7 @@ function renderHome() {
   document.getElementById('main').innerHTML = `
     <div class="home-head">
       <h2>בחר תוכנית</h2>
-      <p>שנת לימודים: ${CUR_YEAR} | עדכון אחרון: 18.5.2026</p>
+      <p>שנת לימודים: ${CUR_YEAR} | עדכון אחרון: ${lastGlobalUpdate() || '—'}</p>
     </div>
     <div class="prog-grid">
       ${PROGRAMS.map(p => `
@@ -694,9 +705,10 @@ function goHome() { renderHome(); }
 // ═══════════════════════════════════════════
 
 function buildDisplay(id) {
-  if (id === 'bachelor')  return buildBachelorDisplay();
-  if (id === 'welfare')   return buildWelfareDisplay();
+  if (id === 'bachelor')   return buildBachelorDisplay();
+  if (id === 'welfare')    return buildWelfareDisplay();
   if (id === 'all_master') return buildAllMasterDisplay();
+  if (id === 'hashlamot')  return buildHashlamotDisplay();
 
   const p = prog(id);
   const tgt = getTarget(id);
@@ -745,11 +757,38 @@ function buildDisplay(id) {
     <div class="sec-title">📈 מגמת רישום לאורך השנה</div>
     <div class="chart-wrap"><canvas id="regChart"></canvas></div>
 
+    ${id === 'social_work' ? buildTracksDisplay('social_work', [{key:'track_context',label:'טיפול בהקשר חברתי'},{key:'track_social',label:'שינוי חברתי במציאות משתנה'}]) : ''}
+    ${id === 'early_childhood' ? buildTracksDisplay('early_childhood', [{key:'track_guidance',label:'הדרכה ויעוץ'},{key:'track_policy',label:'מדיניות וניהול'},{key:'track_mental',label:'בריאות הנפש'}]) : ''}
     <div class="table-section" style="margin-top:28px">
       <div class="sec-title">📋 טבלה היסטורית — נרשמים לפי תקופה ושנה</div>
       <div class="tbl-wrap">${buildHistTable(id)}</div>
     </div>
   `;
+}
+
+function buildTracksDisplay(id, tracks) {
+  const ud = load(id);
+  const rows = tracks.map(t => {
+    const a = ud[t.key+'_acc'];
+    const p = ud[t.key+'_pay'];
+    return `<tr>
+      <td style="text-align:right;padding:7px 12px;background:#F7F8FC;font-size:13px;color:var(--text2)">${t.label}</td>
+      <td style="text-align:center;padding:7px 12px;font-weight:700;font-size:15px">${(a !== undefined && a !== '') ? a : '—'}</td>
+      <td style="text-align:center;padding:7px 12px;font-weight:700;font-size:15px">${(p !== undefined && p !== '') ? p : '—'}</td>
+    </tr>`;
+  }).join('');
+  return `
+    <div class="sec-title" style="margin-top:24px">📌 פירוט לפי מגמה</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th style="text-align:right;background:#37474F;min-width:200px">מגמה</th>
+          <th style="background:#37474F">מתקבלים</th>
+          <th style="background:#37474F">משלמים</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 function buildAllMasterDisplay() {
@@ -1075,6 +1114,7 @@ function initChart(id) {
 function buildUpdate(id) {
   const p = prog(id);
   if (p.agg) return buildAllMasterUpdate();
+  if (id === 'hashlamot') return buildHashlamotUpdate();
 
   const np  = numPeriods(id);
   const ud  = load(id);
@@ -1100,7 +1140,7 @@ function buildUpdate(id) {
             value="${curVal}"
             placeholder="—"
             style="border-color: color-mix(in srgb, ${p.color} 40%, #dde)"
-            onchange="saveField('${id}','r${pi}',this.value)">
+            oninput="saveField('${id}','r${pi}',this.value)">
         </td>
       </tr>`;
   }
@@ -1118,28 +1158,28 @@ function buildUpdate(id) {
         <input type="number" class="finput" min="0"
           value="${ud.accepted431 ?? ''}" placeholder="—"
           style="border-color:#90CAF9"
-          onchange="saveField('${id}','accepted431',this.value)">
+          oninput="saveField('${id}','accepted431',this.value)">
       </div>
       <div class="frow">
         <label class="flabel" style="color:#1565C0">משלמים מקדמה 431:</label>
         <input type="number" class="finput" min="0"
           value="${ud.paying431 ?? ''}" placeholder="—"
           style="border-color:#90CAF9"
-          onchange="saveField('${id}','paying431',this.value)">
+          oninput="saveField('${id}','paying431',this.value)">
       </div>
       <div class="frow">
         <label class="flabel" style="color:#0D47A1">מתקבלים 430:</label>
         <input type="number" class="finput" min="0"
           value="${ud.accepted430 ?? ''}" placeholder="—"
           style="border-color:#9FA8DA"
-          onchange="saveField('${id}','accepted430',this.value)">
+          oninput="saveField('${id}','accepted430',this.value)">
       </div>
       <div class="frow">
         <label class="flabel" style="color:#0D47A1">משלמים מקדמה 430:</label>
         <input type="number" class="finput" min="0"
           value="${ud.paying430 ?? ''}" placeholder="—"
           style="border-color:#9FA8DA"
-          onchange="saveField('${id}','paying430',this.value)">
+          oninput="saveField('${id}','paying430',this.value)">
       </div>
     </div>` : '';
 
@@ -1193,21 +1233,21 @@ function buildUpdate(id) {
             <input type="number" class="finput" min="0"
               value="${al ?? ''}" placeholder="—"
               style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
-              onchange="saveField('${id}','acceptanceLetters',this.value)">
+              oninput="saveField('${id}','acceptanceLetters',this.value)">
           </div>
           <div class="frow">
             <label class="flabel">הסרות מועמדות:</label>
             <input type="number" class="finput" min="0"
               value="${wd ?? ''}" placeholder="—"
               style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
-              onchange="saveField('${id}','withdrawals',this.value)">
+              oninput="saveField('${id}','withdrawals',this.value)">
           </div>
           <div class="frow">
             <label class="flabel">מממשים (שילמו מקדמה):</label>
             <input type="number" class="finput" min="0"
               value="${im ?? ''}" placeholder="—"
               style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
-              onchange="saveField('${id}','implementors',this.value)">
+              oninput="saveField('${id}','implementors',this.value)">
           </div>
           ${bachelorFields}
           ${masterTracksHtml}
@@ -1221,7 +1261,7 @@ function buildUpdate(id) {
         <div class="upd-card" style="margin-top:14px">
           <h3>📝 הערות</h3>
           <textarea class="notes-ta" placeholder="הכנס הערות..."
-            onchange="saveField('${id}','notes',this.value)">${load(id).notes || ''}</textarea>
+            oninput="saveField('${id}','notes',this.value)">${load(id).notes || ''}</textarea>
         </div>
 
         <button class="email-btn" onclick="sendUpdateEmail('${emailGroup}','${id}')">
@@ -1309,7 +1349,7 @@ function buildSubProgUpdate(sp) {
         <td class="pv">${prevVal ?? '—'}</td>
         <td><input type="number" min="0" value="${curVal}" placeholder="—"
           style="width:70px;padding:5px 7px;border:1.5px solid color-mix(in srgb,${p.color} 40%,#dde);border-radius:6px;text-align:center"
-          onchange="saveField('${id}','r${pi}',this.value)"></td>
+          oninput="saveField('${id}','r${pi}',this.value)"></td>
       </tr>`;
   }
 
@@ -1350,19 +1390,19 @@ function buildSubProgUpdate(sp) {
                 <label class="flabel">מכתבי קבלה:</label>
                 <input type="number" class="finput" min="0" value="${al ?? ''}" placeholder="—"
                   style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
-                  onchange="saveField('${id}','acceptanceLetters',this.value)">
+                  oninput="saveField('${id}','acceptanceLetters',this.value)">
               </div>
               <div class="frow">
                 <label class="flabel">הסרות מועמדות:</label>
                 <input type="number" class="finput" min="0" value="${wd ?? ''}" placeholder="—"
                   style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
-                  onchange="saveField('${id}','withdrawals',this.value)">
+                  oninput="saveField('${id}','withdrawals',this.value)">
               </div>
               <div class="frow">
                 <label class="flabel">מממשים (שילמו מקדמה):</label>
                 <input type="number" class="finput" min="0" value="${im ?? ''}" placeholder="—"
                   style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
-                  onchange="saveField('${id}','implementors',this.value)">
+                  oninput="saveField('${id}','implementors',this.value)">
               </div>
               ${tracksHtml}
             </div>
@@ -1385,12 +1425,12 @@ function buildTracksSection(id, tracks, color) {
       <td style="padding:4px 8px">
         <input type="number" min="0" value="${ud[t.key+'_acc'] ?? ''}" placeholder="—"
           style="width:72px;padding:4px 6px;border:1.5px solid color-mix(in srgb,${color} 30%,#dde);border-radius:6px;text-align:center;font-size:13px"
-          onchange="saveField('${id}','${t.key}_acc',this.value)">
+          oninput="saveField('${id}','${t.key}_acc',this.value)">
       </td>
       <td style="padding:4px 8px">
         <input type="number" min="0" value="${ud[t.key+'_pay'] ?? ''}" placeholder="—"
           style="width:72px;padding:4px 6px;border:1.5px solid color-mix(in srgb,${color} 30%,#dde);border-radius:6px;text-align:center;font-size:13px"
-          onchange="saveField('${id}','${t.key}_pay',this.value)">
+          oninput="saveField('${id}','${t.key}_pay',this.value)">
       </td>
     </tr>`).join('');
   return `
@@ -1407,6 +1447,153 @@ function buildTracksSection(id, tracks, color) {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+}
+
+function getHashlamot(field) {
+  const ud = load('hashlamot');
+  if (ud[field] !== undefined && ud[field] !== '') return Number(ud[field]);
+  return HIST_HASHLAMOT[field] ?? null;
+}
+
+function buildHashlamotDisplay() {
+  const c = '#4527A0';
+  const reg     = getHashlamot('registrants');
+  const dual    = getHashlamot('dual_registrants');
+  const total   = (reg !== null && dual !== null) ? reg + dual : null;
+  const acc     = getHashlamot('accepted');
+  const rej     = getHashlamot('rejected');
+  const wait    = getHashlamot('waiting_list');
+  const comm    = getHashlamot('committee');
+  const fac     = getHashlamot('faculty');
+  const pending = (acc !== null && rej !== null && wait !== null && comm !== null && fac !== null)
+    ? acc + rej + wait + comm + fac : null;
+
+  const ud = load('hashlamot');
+  const trackRows = [
+    { key:'track_context', label:'טיפול בהקשר חברתי' },
+    { key:'track_social',  label:'שינוי חברתי במציאות משתנה' },
+  ].map(t => {
+    const a = ud[t.key+'_acc'] ?? '—';
+    const p = ud[t.key+'_pay'] ?? '—';
+    return `<tr>
+      <td style="text-align:right;padding:6px 10px;background:#F7F8FC;font-size:12px;color:var(--text2)">${t.label}</td>
+      <td style="text-align:center;padding:6px 10px;font-weight:700">${a}</td>
+      <td style="text-align:center;padding:6px 10px;font-weight:700">${p}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="sum-grid">
+      <div class="sum-card hl" style="--pc:${c}">
+        <div class="lbl">נרשמו לתוכנית</div>
+        <div class="val">${reg ?? '—'}</div>
+        <div class="sub">נרשמו לשתי תוכניות: ${dual ?? '—'}</div>
+      </div>
+      <div class="sum-card hl" style="--pc:${c}">
+        <div class="lbl">סה"כ תיקים</div>
+        <div class="val">${total ?? '—'}</div>
+        <div class="sub">כולל כפל רישום</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">התקבלו</div>
+        <div class="val">${acc ?? '—'}</div>
+        <div class="sub">${(acc && reg) ? Math.round(acc/reg*100)+'% מהנרשמים' : ''}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">נדחו</div>
+        <div class="val">${rej ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">רשימת המתנה</div>
+        <div class="val">${wait ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">בטיפול ועדה</div>
+        <div class="val">${comm ?? '—'}</div>
+      </div>
+      <div class="sum-card">
+        <div class="lbl">בטיפול פקולטה</div>
+        <div class="val">${fac ?? '—'}</div>
+        <div class="sub">טרם הועברו לוועדה</div>
+      </div>
+    </div>
+    <div class="sec-title" style="margin-top:8px">📌 פירוט לפי מגמה</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th style="text-align:right;background:#37474F">מגמה</th>
+          <th style="background:#37474F">מתקבלים</th>
+          <th style="background:#37474F">משלמים</th>
+        </tr></thead>
+        <tbody>${trackRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function buildHashlamotUpdate() {
+  const c = '#4527A0';
+  const ud = load('hashlamot');
+  const h  = HIST_HASHLAMOT;
+
+  const field = (key, label, color) => `
+    <div class="frow">
+      <label class="flabel" style="color:${color||'var(--text2)'}">${label}:</label>
+      <input type="number" class="finput" min="0"
+        value="${ud[key] !== undefined ? ud[key] : (h[key] ?? '')}" placeholder="—"
+        style="border-color:color-mix(in srgb,${c} 30%,#dde)"
+        oninput="saveField('hashlamot','${key}',this.value)">
+    </div>`;
+
+  const tracksHtml = buildTracksSection('hashlamot', [
+    { key:'track_context', label:'טיפול בהקשר חברתי' },
+    { key:'track_social',  label:'שינוי חברתי במציאות משתנה' },
+  ], c);
+
+  const reg  = ud.registrants  !== undefined ? Number(ud.registrants)  : h.registrants;
+  const dual = ud.dual_registrants !== undefined ? Number(ud.dual_registrants) : h.dual_registrants;
+  const total = (reg !== null && dual !== null) ? reg + dual : '—';
+
+  return `
+    <div style="font-weight:700;font-size:15px;margin-bottom:18px">
+      עדכון נתונים — תוכנית ההשלמות — שנת ${CUR_YEAR}
+    </div>
+    <div class="upd-grid">
+      <div>
+        <div class="upd-card">
+          <h3>📊 נתוני רישום</h3>
+          ${field('registrants',      'נרשמו לתוכנית')}
+          ${field('dual_registrants', 'נרשמו לשתי תוכניות')}
+          <div class="frow" style="background:color-mix(in srgb,${c} 8%,#fff);border-radius:8px;padding:8px 12px;margin-top:4px">
+            <label class="flabel" style="color:${c};font-weight:700">סה"כ תיקים:</label>
+            <span style="font-size:20px;font-weight:800;color:${c}">${total}</span>
+          </div>
+        </div>
+        <div class="upd-card" style="margin-top:14px">
+          <h3>📋 סטטוס טיפול</h3>
+          ${field('accepted',     'התקבלו',                  '#1B5E20')}
+          ${field('rejected',     'נדחו',                    '#B71C1C')}
+          ${field('waiting_list', 'רשימת המתנה',              '#E65100')}
+          ${field('committee',    'בטיפול ועדה',              '#1565C0')}
+          ${field('faculty',      'בטיפול פקולטה (לא הועברו)', '#37474F')}
+        </div>
+      </div>
+      <div>
+        <div class="upd-card">
+          <h3>📋 סיכום מגמות</h3>
+          ${tracksHtml}
+        </div>
+        <div class="upd-card" style="margin-top:14px">
+          <h3>📝 הערות</h3>
+          <textarea class="notes-ta" placeholder="הכנס הערות..."
+            oninput="saveField('hashlamot','notes',this.value)">${ud.notes || ''}</textarea>
+        </div>
+        <button class="email-btn" onclick="sendUpdateEmail('master','hashlamot')">
+          📧 שלח עדכון במייל לרשימת התפוצה
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 function buildAggNotice() {
@@ -1458,10 +1645,26 @@ function buildComparison(id) {
 // ═══════════════════════════════════════════
 
 function saveField(id, field, value) {
+  if (value === '' || value === null) return;
   const ud = load(id);
   ud[field] = value;
+  const now = new Date();
+  ud._updatedTs = now.getTime();
+  ud._updated = now.toLocaleDateString('he-IL') + ' ' + now.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
   save(id, ud);
   showToast('נשמר ✓');
+}
+
+function lastGlobalUpdate() {
+  let latestTs = 0, latestStr = null;
+  for (const p of PROGRAMS) {
+    const ud = load(p.id);
+    if (ud._updatedTs && ud._updatedTs > latestTs) {
+      latestTs = ud._updatedTs;
+      latestStr = ud._updated;
+    }
+  }
+  return latestStr;
 }
 
 // ═══════════════════════════════════════════
