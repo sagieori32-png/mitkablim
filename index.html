@@ -1123,6 +1123,8 @@ function buildUpdate(id) {
   if (id === 'hashlamot') return buildHashlamotUpdate();
 
   const np  = numPeriods(id);
+  // sync acceptanceLetters + implementors from tracks if track data exists
+  syncTrackSums(id);
   const ud  = load(id);
   const al  = getSum(id, 'acceptanceLetters');
   const wd  = getSum(id, 'withdrawals');
@@ -1253,6 +1255,7 @@ function buildUpdate(id) {
             <label class="flabel">מממשים (שילמו מקדמה):</label>
             <input type="number" class="finput" min="0"
               value="${im ?? ''}" placeholder="—"
+              data-im-id="${id}"
               style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
               oninput="saveField('${id}','implementors',this.value)">
           </div>
@@ -1339,6 +1342,7 @@ function buildSubProgUpdate(sp) {
   const id = sp.id;
   const p = prog(id);
   const np = numPeriods(id);
+  syncTrackSums(id);
   const ud = load(id);
   const al = getSum(id, 'acceptanceLetters');
   const wd = getSum(id, 'withdrawals');
@@ -1409,6 +1413,7 @@ function buildSubProgUpdate(sp) {
               <div class="frow">
                 <label class="flabel">מממשים (שילמו מקדמה):</label>
                 <input type="number" class="finput" min="0" value="${im ?? ''}" placeholder="—"
+                  data-im-id="${id}"
                   style="border-color:color-mix(in srgb,${p.color} 30%,#dde)"
                   oninput="saveField('${id}','implementors',this.value)">
               </div>
@@ -1438,7 +1443,7 @@ function buildTracksSection(id, tracks, color) {
       <td style="padding:4px 8px">
         <input type="number" min="0" value="${ud[t.key+'_pay'] ?? ''}" placeholder="—"
           style="width:72px;padding:4px 6px;border:1.5px solid color-mix(in srgb,${color} 30%,#dde);border-radius:6px;text-align:center;font-size:13px"
-          oninput="saveField('${id}','${t.key}_pay',this.value)">
+          oninput="saveTrackAcc('${id}','${t.key}_pay',this.value)">
       </td>
     </tr>`).join('');
   return `
@@ -1675,26 +1680,40 @@ function saveField(id, field, value) {
   showToast('נשמר ✓');
 }
 
-const TRACK_ACC_PROGRAMS = {
-  social_work:     ['track_context_acc','track_social_acc'],
-  early_childhood: ['track_guidance_acc','track_policy_acc','track_mental_acc'],
+const TRACK_FIELDS = {
+  social_work:     { acc: ['track_context_acc','track_social_acc'],   pay: ['track_context_pay','track_social_pay']   },
+  early_childhood: { acc: ['track_guidance_acc','track_policy_acc','track_mental_acc'], pay: ['track_guidance_pay','track_policy_pay','track_mental_pay'] },
 };
 
-function saveTrackAcc(id, field, value, inputEl) {
-  saveField(id, field, value);
-  const trackKeys = TRACK_ACC_PROGRAMS[id];
-  if (!trackKeys) return;
+function calcTrackFieldSum(id, type) {
+  const tf = TRACK_FIELDS[id];
+  if (!tf) return null;
+  const keys = tf[type];
   const ud = load(id);
-  const sum = trackKeys.reduce((s, k) => {
-    const v = parseFloat(ud[k]);
-    return s + (isNaN(v) ? 0 : v);
-  }, 0);
-  if (sum > 0) {
-    saveField(id, 'acceptanceLetters', sum);
-    // update the visible input on screen
-    const alInput = document.querySelector(`[data-al-id="${id}"]`);
-    if (alInput) alInput.value = sum;
-  }
+  const hasAny = keys.some(k => ud[k] !== undefined && ud[k] !== '');
+  if (!hasAny) return null;
+  return keys.reduce((s, k) => { const v = parseFloat(ud[k]); return s + (isNaN(v) ? 0 : v); }, 0);
+}
+
+function syncTrackSums(id) {
+  const ud = load(id);
+  let changed = false;
+  const accSum = calcTrackFieldSum(id, 'acc');
+  if (accSum !== null && accSum > 0) { ud.acceptanceLetters = accSum; changed = true; }
+  const paySum = calcTrackFieldSum(id, 'pay');
+  if (paySum !== null && paySum > 0) { ud.implementors = paySum; changed = true; }
+  if (changed) save(id, ud);
+  return { accSum, paySum };
+}
+
+function saveTrackAcc(id, field, value) {
+  saveField(id, field, value);
+  const { accSum, paySum } = syncTrackSums(id);
+  if (accSum !== null && accSum > 0)
+    document.querySelectorAll(`[data-al-id="${id}"]`).forEach(el => { el.value = accSum; });
+  if (paySum !== null && paySum > 0)
+    document.querySelectorAll(`[data-im-id="${id}"]`).forEach(el => { el.value = paySum; });
+  showToast('נשמר ✓');
 }
 
 function lastGlobalUpdate() {
