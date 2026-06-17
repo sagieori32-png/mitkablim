@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>מערכת דיווח - בית הספר לע"ס ולרווחה חברתית</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <style>
     :root {
       --surface: #FFFFFF;
@@ -40,7 +42,6 @@
     .hdr-title { font-size: 19px; font-weight: 700; }
     .hdr-sub { font-size: 12px; opacity: .8; margin-top: 2px; }
     .back-btn {
-      margin-right: auto;
       background: rgba(255,255,255,.15);
       border: 1px solid rgba(255,255,255,.35);
       color: #fff;
@@ -53,6 +54,66 @@
     }
     .back-btn.vis { display: block; }
     .back-btn:hover { background: rgba(255,255,255,.25); }
+
+    /* ── Header right-side group (conn status + edit + back) ── */
+    .hdr-right { margin-right: auto; display: flex; align-items: center; gap: 10px; }
+    .conn-status {
+      display: flex; align-items: center; gap: 7px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 20px;
+      padding: 6px 13px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .cs-dot { width: 9px; height: 9px; border-radius: 50%; background: #E65100; flex-shrink: 0; transition: background .3s; }
+    .edit-toggle {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.35);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background .18s;
+      white-space: nowrap;
+    }
+    .edit-toggle:hover { background: rgba(255,255,255,.25); }
+    .edit-toggle.on { background: #2E7D32; border-color: #2E7D32; }
+
+    /* Read-only overlay over edit fields when not in edit mode */
+    .ro-lock input, .ro-lock textarea { pointer-events: none; background: #f1f3f7 !important; color: var(--text2) !important; }
+    .ro-banner {
+      background: #FFF8E1; border: 1px solid #FFD54F; color: #7A5800;
+      border-radius: 10px; padding: 10px 16px; margin-bottom: 14px; font-size: 13px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ro-banner button {
+      margin-right: auto; background: #2E7D32; color:#fff; border:none;
+      padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 13px;
+    }
+
+    /* Access-code modal */
+    .modal-bg {
+      position: fixed; inset: 0; background: rgba(13,30,60,.55);
+      display: none; align-items: center; justify-content: center; z-index: 999;
+    }
+    .modal-bg.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 16px; padding: 28px 26px; width: 340px; max-width: 90vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3); text-align: center;
+    }
+    .modal h3 { font-size: 18px; margin-bottom: 6px; color: var(--text); }
+    .modal p { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
+    .modal input {
+      width: 100%; padding: 11px 14px; font-size: 16px; text-align: center;
+      border: 1.5px solid var(--border); border-radius: 10px; margin-bottom: 14px; box-sizing: border-box;
+    }
+    .modal .m-actions { display: flex; gap: 10px; }
+    .modal .m-actions button { flex: 1; padding: 10px; border-radius: 9px; cursor: pointer; font-size: 14px; border: none; }
+    .modal .m-ok { background: #1565C0; color: #fff; }
+    .modal .m-cancel { background: #eceff4; color: var(--text); }
+    .modal .m-err { color: #B71C1C; font-size: 12px; min-height: 16px; margin-bottom: 8px; }
 
     /* ── Layout ── */
     .main { padding: 28px 24px; max-width: 1450px; margin: 0 auto; }
@@ -407,11 +468,32 @@
     <div class="hdr-title">בית הספר לעבודה סוציאלית ולרווחה חברתית</div>
     <div class="hdr-sub">מערכת דיווח וצפייה במועמדים, נרשמים ומתקבלים</div>
   </div>
-  <button class="back-btn" id="backBtn" onclick="goHome()">← חזרה לתפריט</button>
+  <div class="hdr-right">
+    <div class="conn-status" id="connStatus" title="מצב הסנכרון מול הענן">
+      <span class="cs-dot"></span><span class="cs-txt">מתחבר…</span>
+    </div>
+    <button class="edit-toggle" id="editToggle" onclick="toggleEdit()">🔒 מצב צפייה</button>
+    <button class="back-btn" id="backBtn" onclick="goHome()">← חזרה לתפריט</button>
+  </div>
 </div>
 
 <div class="main" id="main"></div>
 <div class="toast" id="toast"></div>
+
+<!-- Access-code modal -->
+<div class="modal-bg" id="codeModal">
+  <div class="modal">
+    <h3>🔑 מצב עריכה</h3>
+    <p>להזנת ועדכון נתונים נדרש קוד גישה. הצפייה פתוחה ללא קוד.</p>
+    <input type="password" id="codeInput" placeholder="קוד גישה" autocomplete="off"
+           onkeydown="if(event.key==='Enter')submitCode()">
+    <div class="m-err" id="codeErr"></div>
+    <div class="m-actions">
+      <button class="m-cancel" onclick="closeCodeModal()">ביטול</button>
+      <button class="m-ok" onclick="submitCode()">אישור</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ═══════════════════════════════════════════
@@ -597,15 +679,184 @@ let S = { prog: null, tab: 'display' };
 let chartInst = null;
 
 // ═══════════════════════════════════════════
-// STORAGE
+// STORAGE  —  Firebase Realtime DB  + in-memory cache  + localStorage fallback
 // ═══════════════════════════════════════════
+//
+// How it works:
+//  • CLOUD is an in-memory mirror of all program data. Every read (load) is
+//    synchronous and hits CLOUD, so the rest of the app didn't need rewriting.
+//  • On boot we connect to Firebase and attach a listener per program. Whenever
+//    anyone — on any device — saves, Firebase pushes the change to every open
+//    client, the listener refreshes CLOUD and re-renders the current view.
+//  • save() writes to CLOUD immediately (snappy UI) and pushes to Firebase.
+//  • If Firebase is unreachable, everything still works against localStorage,
+//    and syncs up to the cloud once the connection returns.
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCn9daIdtAIjUFx3U6WS4UomPxMP01gY4Y",
+  authDomain: "mitkablimsw.firebaseapp.com",
+  databaseURL: "https://mitkablimsw-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "mitkablimsw",
+  storageBucket: "mitkablimsw.firebasestorage.app",
+  messagingSenderId: "552476729638",
+  appId: "1:552476729638:web:8711b7b7c3e1aee801e1e7",
+  measurementId: "G-DV5EW017YM"
+};
+
+const SYNC_IDS = ['bachelor','welfare','social_work','nonprofit','early_childhood','hashlamot'];
+
+let CLOUD = {};         // in-memory mirror: { id: {field:value, _updated, _updatedTs} }
+let fbDb = null;        // Firebase database handle (null if offline)
+let fbReady = false;    // becomes true once the first snapshot for every id arrived
+let fbWrites = {};      // guards: ignore our own echo from Firebase
+
+// Seed CLOUD from localStorage first, so the UI has something to show instantly
+SYNC_IDS.concat(['all_master']).forEach(id => {
+  try { CLOUD[id] = JSON.parse(localStorage.getItem('sws_' + id)) || {}; }
+  catch { CLOUD[id] = {}; }
+});
 
 function load(id) {
-  try { return JSON.parse(localStorage.getItem('sws_' + id)) || {}; }
-  catch { return {}; }
+  return CLOUD[id] || {};
 }
+
 function save(id, data) {
-  localStorage.setItem('sws_' + id, JSON.stringify(data));
+  CLOUD[id] = data;
+  // local mirror (offline safety / instant cross-tab via storage event)
+  try { localStorage.setItem('sws_' + id, JSON.stringify(data)); } catch (e) {}
+  // push to the cloud
+  if (fbDb) {
+    fbWrites[id] = Date.now();
+    fbDb.ref('programs/' + id).set(data).catch(err => {
+      console.warn('Firebase write failed for', id, err);
+      setConnState('error');
+    });
+  }
+}
+
+function initFirebase() {
+  try {
+    firebase.initializeApp(firebaseConfig);
+    fbDb = firebase.database();
+  } catch (e) {
+    console.warn('Firebase init failed — running in local-only mode.', e);
+    setConnState('offline');
+    fbReady = true;
+    return;
+  }
+
+  // Connection status indicator
+  fbDb.ref('.info/connected').on('value', snap => {
+    setConnState(snap.val() ? 'online' : 'connecting');
+  });
+
+  let pending = SYNC_IDS.length;
+  SYNC_IDS.forEach(id => {
+    fbDb.ref('programs/' + id).on('value', snap => {
+      const val = snap.val();
+      // Mark first response received
+      if (pending > 0) { pending--; if (pending === 0) { fbReady = true; } }
+
+      if (val) {
+        // Ignore the echo of a write we just made (< 1.5s ago) to avoid flicker
+        const justWrote = fbWrites[id] && (Date.now() - fbWrites[id] < 1500);
+        CLOUD[id] = val;
+        try { localStorage.setItem('sws_' + id, JSON.stringify(val)); } catch (e) {}
+        if (!justWrote) {
+          // someone else (or another tab/device) changed the data — reflect it live
+          reRenderCurrentView();
+        }
+        refreshLastUpdateUI(id);
+      } else {
+        // No cloud value yet. If we have local data, seed the cloud with it once.
+        const local = CLOUD[id];
+        if (local && Object.keys(local).length && fbDb) {
+          fbDb.ref('programs/' + id).set(local).catch(()=>{});
+        }
+      }
+    }, err => {
+      console.warn('Firebase read failed for', id, err);
+      setConnState('error');
+    });
+  });
+}
+
+// Re-render whatever the user is currently looking at, preserving their place.
+function reRenderCurrentView() {
+  if (S.prog) {
+    const active = document.activeElement;
+    // Don't yank focus out of a field the user is typing in
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+    renderProg(S.prog);
+  } else {
+    renderHome();
+  }
+}
+
+// ═══════════════════════════════════════════
+// EDIT MODE  +  ACCESS CODE
+// ═══════════════════════════════════════════
+// View is always open. Editing requires entering the shared code once per
+// session. Change ACCESS_CODE to whatever you'd like to share with the team.
+const ACCESS_CODE = '2027';
+let EDIT_MODE = false;
+
+function isEditMode() { return EDIT_MODE; }
+
+function toggleEdit() {
+  if (EDIT_MODE) {
+    EDIT_MODE = false;
+    updateEditToggleUI();
+    reRenderCurrentView();
+  } else {
+    openCodeModal();
+  }
+}
+
+function openCodeModal() {
+  document.getElementById('codeErr').textContent = '';
+  document.getElementById('codeInput').value = '';
+  document.getElementById('codeModal').classList.add('show');
+  setTimeout(() => document.getElementById('codeInput').focus(), 50);
+}
+function closeCodeModal() {
+  document.getElementById('codeModal').classList.remove('show');
+}
+function submitCode() {
+  const v = document.getElementById('codeInput').value.trim();
+  if (v === ACCESS_CODE) {
+    EDIT_MODE = true;
+    closeCodeModal();
+    updateEditToggleUI();
+    reRenderCurrentView();
+    showToast('מצב עריכה פעיל ✓');
+  } else {
+    document.getElementById('codeErr').textContent = 'קוד שגוי, נסה שוב';
+    document.getElementById('codeInput').select();
+  }
+}
+function updateEditToggleUI() {
+  const btn = document.getElementById('editToggle');
+  if (!btn) return;
+  if (EDIT_MODE) { btn.classList.add('on'); btn.textContent = '✏️ מצב עריכה (פעיל)'; }
+  else { btn.classList.remove('on'); btn.textContent = '🔒 מצב צפייה'; }
+}
+
+
+let _connState = 'connecting';
+function setConnState(state) {
+  _connState = state;
+  const el = document.getElementById('connStatus');
+  if (!el) return;
+  const map = {
+    online:     { dot:'#2E7D32', txt:'מחובר — סנכרון פעיל' },
+    connecting: { dot:'#E65100', txt:'מתחבר…' },
+    offline:    { dot:'#9aa1ad', txt:'מצב מקומי (ללא ענן)' },
+    error:      { dot:'#B71C1C', txt:'שגיאת חיבור' },
+  };
+  const m = map[state] || map.connecting;
+  el.querySelector('.cs-dot').style.background = m.dot;
+  el.querySelector('.cs-txt').textContent = m.txt;
 }
 
 // ═══════════════════════════════════════════
@@ -720,7 +971,12 @@ function renderProg(id) {
       <button class="tab-btn ${S.tab==='display'?'active':''}" style="--pc:${c}" onclick="switchTab('display')">📊 תצוגה</button>
       <button class="tab-btn ${S.tab==='update'?'active':''}" style="--pc:${c}" onclick="switchTab('update')">✏️ עדכון</button>
     </div>
-    <div class="tab-body" style="--pc:${c}" id="tabBody">
+    <div class="tab-body ${S.tab==='update' && !EDIT_MODE ? 'ro-lock' : ''}" style="--pc:${c}" id="tabBody">
+      ${S.tab === 'update' && !EDIT_MODE ? `
+        <div class="ro-banner">
+          🔒 מצב צפייה — השדות נעולים לעריכה.
+          <button onclick="openCodeModal()">הפעל מצב עריכה</button>
+        </div>` : ''}
       ${S.tab === 'display' ? buildDisplay(id) : buildUpdate(id)}
     </div>
   `;
@@ -1698,25 +1954,18 @@ function buildComparison(id) {
 // ═══════════════════════════════════════════
 
 function saveField(id, field, value) {
+  if (!EDIT_MODE) { showToast('יש להפעיל מצב עריכה תחילה 🔒'); return; }
   if (value === '' || value === null || value === undefined) return;
-  const ud = load(id);
+  const ud = Object.assign({}, load(id));
   ud[field] = value;
-  save(id, ud);
+  const now = new Date();
+  ud._updatedTs = now.getTime();
   try {
-    const now = new Date();
-    const saved = load(id);
-    saved._updatedTs = now.getTime();
-    saved._updated = now.toLocaleDateString('he-IL') + ' ' + now.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
-    save(id, saved);
+    ud._updated = now.toLocaleDateString('he-IL') + ' ' + now.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
   } catch(e) {
-    try {
-      const now = new Date();
-      const saved = load(id);
-      saved._updatedTs = now.getTime();
-      saved._updated = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
-      save(id, saved);
-    } catch(e2) { /* timestamp save failed, data already saved above */ }
+    ud._updated = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
   }
+  save(id, ud);
   refreshLastUpdateUI(id);
   showToast('נשמר ✓');
 }
@@ -1885,7 +2134,13 @@ function showToast(msg) {
 // ═══════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════
+updateEditToggleUI();
 renderHome();
+if (typeof firebase !== 'undefined') {
+  initFirebase();
+} else {
+  setConnState('offline');
+}
 </script>
 </body>
 </html>
